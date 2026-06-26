@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+soap1.jpg
+soap2.jpg
+soap3.jpg
+soap4.jpg

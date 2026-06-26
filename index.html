@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EcoKnot Gifting - Quà Tặng Xanh & Độc Bản</title>
+  <meta name="description" content="EcoKnot Gifting - Trải nghiệm tự tay tạo hộp quà xanh, bền vững và cá nhân hóa tối đa. Cam kết không màng nhựa, bảo vệ hành tinh xanh.">
+  
+  <!-- Google Fonts: Montserrat & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome for standard icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Header Navigation -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo-area" id="nav-logo">
+        <img src="/images/Logo.jpg" alt="EcoKnot Logo" class="brand-logo">
+        <span class="brand-name">EcoKnot <small>Gifting</small></span>
+      </div>
+      
+      <nav class="main-nav">
+        <ul class="nav-links">
+          <li><a href="#home" class="nav-link active" data-route="home">Trang chủ</a></li>
+          <li><a href="#customizer" class="nav-link highlight-link" data-route="customizer"><i class="fa-solid fa-gift"></i> Tạo hộp quà</a></li>
+          <li><a href="#shop" class="nav-link" data-route="shop">Cửa hàng</a></li>
+          <li><a href="#b2b" class="nav-link" data-route="b2b">Quà doanh nghiệp</a></li>
+          <li><a href="#story" class="nav-link" data-route="story">Câu chuyện thương hiệu</a></li>
+          <li><a href="#tracking" class="nav-link" data-route="tracking">Theo dõi đơn hàng</a></li>
+        </ul>
+      </nav>
+      
+      <div class="header-actions">
+        <!-- Search bar -->
+        <div class="search-box">
+          <input type="text" id="global-search" placeholder="Tìm quà tặng...">
+          <button id="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+        </div>
+        
+        <!-- Cart toggle -->
+        <button class="icon-btn" id="cart-toggle-btn" aria-label="Giỏ hàng">
+          <i class="fa-solid fa-basket-shopping"></i>
+          <span class="cart-badge" id="cart-count">0</span>
+        </button>
+        
+        <!-- Auth area -->
+        <div class="auth-header-area" id="auth-header-area">
+          <button class="btn btn-outline auth-login-btn" id="login-header-btn" style="padding:0.4rem 1rem; font-size:0.85rem; white-space:nowrap;">
+            <i class="fa-solid fa-right-to-bracket"></i> Đăng nhập
+          </button>
+          <div class="user-menu" id="user-menu" style="display:none;">
+            <button class="icon-btn" id="account-btn" aria-label="Tài khoản">
+              <i class="fa-solid fa-circle-user"></i>
+            </button>
+            <div class="user-dropdown" id="user-dropdown">
+              <div class="dropdown-user-info" id="dropdown-user-email">user@email.com</div>
+              <hr>
+              <button class="dropdown-item" id="dropdown-account-link"><i class="fa-solid fa-user"></i> Tài khoản</button>
+              <button class="dropdown-item" id="dropdown-logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Đăng xuất</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Menu Toggle -->
+      <button class="mobile-menu-toggle" id="mobile-toggle" aria-label="Toggle Menu">
+        <i class="fa-solid fa-bars"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Nav Overlay -->
+  <div class="mobile-nav-overlay" id="mobile-nav">
+    <div class="mobile-nav-content">
+      <button class="close-mobile-nav" id="close-mobile-nav">&times;</button>
+      <ul class="mobile-nav-links">
+        <li><a href="#home" class="mobile-route" data-route="home">Trang chủ</a></li>
+        <li><a href="#customizer" class="mobile-route highlight-link" data-route="customizer"><i class="fa-solid fa-gift"></i> Tạo hộp quà</a></li>
+        <li><a href="#shop" class="mobile-route" data-route="shop">Cửa hàng</a></li>
+        <li><a href="#b2b" class="mobile-route" data-route="b2b">Quà doanh nghiệp</a></li>
+        <li><a href="#story" class="mobile-route" data-route="story">Câu chuyện thương hiệu</a></li>
+        <li><a href="#tracking" class="mobile-route" data-route="tracking">Theo dõi đơn hàng</a></li>
+        <li><a href="#account" class="mobile-route" data-route="account"><i class="fa-solid fa-circle-user"></i> Tài khoản của tôi</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Onboarding / AI Preference Survey Modal -->
+  <div class="modal-overlay" id="onboarding-modal">
+    <div class="onboarding-card">
+      <button class="close-modal" id="close-onboarding-btn">&times;</button>
+      <div class="onboarding-progress">
+        <div class="onboarding-progress-track">
+          <div class="progress-bar-fill" id="onboarding-progress-bar"></div>
+        </div>
+      </div>
+      
+      <!-- Step dots indicator -->
+      <div class="step-indicators" id="step-indicators">
+        <span class="step-dot active" data-step="0"></span>
+        <span class="step-dot" data-step="1"></span>
+        <span class="step-dot" data-step="2"></span>
+        <span class="step-dot" data-step="3"></span>
+        <span class="step-dot" data-step="4"></span>
+        <span class="step-dot" data-step="5"></span>
+      </div>
+      
+      <!-- Welcome Step -->
+      <div class="onboarding-step active" data-step="0">
+        <div class="success-screen">
+          <div class="success-icon">🌿</div>
+          <h2>Chào mừng bạn đến với<br>EcoKnot Gifting!</h2>
+          <p>Để AI của chúng tôi thiết lập gợi ý sản phẩm phù hợp nhất với sở thích và lối sống xanh của bạn, hãy hoàn thành khảo sát 5 câu hỏi nhanh này nhé (mất chưa đầy 1 phút).</p>
+          <div class="promo-hint">
+            <i class="fa-solid fa-gift"></i>
+            <span><strong>Hoàn thành để nhận mã giảm giá 10%</strong> cho đơn hàng đầu tiên!</span>
+          </div>
+        </div>
+        <div class="auth-fields">
+          <div class="form-group">
+            <label for="ob-email">Địa chỉ Email của bạn *</label>
+            <div class="input-icon-wrapper">
+              <i class="fa-solid fa-envelope"></i>
+              <input type="email" id="ob-email" placeholder="example@gmail.com" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="ob-password">Mật khẩu *</label>
+            <div class="input-icon-wrapper">
+              <i class="fa-solid fa-lock"></i>
+              <input type="password" id="ob-password" placeholder="Nhập mật khẩu..." required>
+            </div>
+          </div>
+        </div>
+        <div class="button-row">
+          <button class="btn btn-outline" id="skip-onboarding-btn">Bỏ qua khảo sát</button>
+          <button class="btn btn-primary" id="start-onboarding-btn">Bắt đầu ngay <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- Survey Questions Step 1-5 will be injected here dynamically by app.js -->
+      <div id="survey-question-container"></div>
+
+      <!-- Onboarding Complete Step -->
+      <div class="onboarding-step" data-step="6">
+        <div class="success-screen">
+          <div class="success-icon">🎉</div>
+          <h2>Hồ sơ sở thích đã sẵn sàng!</h2>
+          <p>Cảm ơn bạn đã hoàn thành khảo sát. Giao diện trang chủ và gợi ý sản phẩm đã được cá nhân hóa phù hợp riêng cho bạn.</p>
+          <div class="coupon-box">
+            <span class="coupon-label">MÃ GIẢM GIÁ 10%</span>
+            <strong class="coupon-code">ECOWELCOME10</strong>
+          </div>
+          <p class="account-hint"><i class="fa-solid fa-circle-info"></i> Bạn có thể quản lý và cập nhật hồ sơ này bất kỳ lúc nào trong mục <strong>Tài khoản → Hồ sở thích</strong>.</p>
+        </div>
+        <button class="btn btn-primary btn-block" id="finish-onboarding-btn">Khám phá EcoKnot thôi! <i class="fa-solid fa-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div class="modal-overlay" id="login-modal">
+    <div class="onboarding-card" style="max-width:440px;">
+      <button class="close-modal" id="close-login-btn">&times;</button>
+      <div class="success-screen">
+        <div class="success-icon" style="font-size:3rem;">🔐</div>
+        <h2>Đăng nhập</h2>
+        <p style="margin-bottom:0.5rem;">Nhập thông tin tài khoản EcoKnot của bạn</p>
+      </div>
+      <div class="auth-fields">
+        <div class="form-group">
+          <label for="login-email">Email</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" id="login-email" placeholder="example@gmail.com" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Mật khẩu</label>
+          <div class="input-icon-wrapper">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="login-password" placeholder="Nhập mật khẩu..." required>
+          </div>
+        </div>
+      </div>
+      <div class="button-row" style="flex-direction:column;">
+        <button class="btn btn-primary btn-block" id="login-submit-btn"><i class="fa-solid fa-right-to-bracket"></i> Đăng nhập</button>
+        <p style="text-align:center; font-size:0.85rem; color:var(--color-text-light); margin-top:0.5rem;">
+          Chưa có tài khoản? 
+          <a href="#" id="login-to-onboarding" style="color:var(--color-accent); font-weight:600;">Tạo ngay</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Smart Cart Drawer (Slide-in Panel) -->
+  <div class="cart-drawer-overlay" id="cart-drawer">
+    <div class="cart-drawer">
+      <div class="cart-drawer-header">
+        <h3>Giỏ hàng thông minh</h3>
+        <button class="close-cart-btn" id="close-cart-btn">&times;</button>
+      </div>
+      
+      <div class="cart-drawer-body">
+        <div class="cart-items-container" id="cart-items">
+          <!-- Dynamically filled -->
+          <div class="empty-cart">
+            <i class="fa-solid fa-basket-shopping"></i>
+            <p>Giỏ hàng của bạn đang trống.</p>
+            <a href="#customizer" class="btn btn-primary">Bắt đầu tạo hộp quà</a>
+          </div>
+        </div>
+      </div>
+      
+      <div class="cart-drawer-footer">
+        <div class="cart-summary-row">
+          <span>Tổng tiền hàng:</span>
+          <span class="cart-total-price" id="cart-total-price">0đ</span>
+        </div>
+        <div class="eco-cart-metric">
+          <i class="fa-solid fa-leaf"></i>
+          <span>Bạn đang giúp giảm <strong id="cart-co2-saved">0</strong> kg CO₂e phát thải!</span>
+        </div>
+        <button class="btn btn-primary btn-block" id="checkout-btn">Tiến hành thanh toán</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Digital Product Passport (DPP) Modal / slide-in -->
+  <div class="modal-overlay" id="dpp-modal">
+    <div class="dpp-card">
+      <button class="close-modal" id="close-dpp-btn">&times;</button>
+      <div class="dpp-header">
+        <span class="dpp-badge"><i class="fa-solid fa-passport"></i> Digital Product Passport</span>
+        <h2 id="dpp-prod-name">Sản phẩm</h2>
+        <p class="origin-text"><i class="fa-solid fa-location-dot"></i> Xuất xứ: <span id="dpp-origin">Đà Lạt</span></p>
+      </div>
+      
+      <div class="dpp-body">
+        <div class="dpp-row split">
+          <div class="dpp-col image-col">
+            <img id="dpp-image" src="" alt="Product" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=600&q=80';">
+          </div>
+          <div class="dpp-col details-col">
+            <h3>Chi tiết vật liệu</h3>
+            <p><strong>Thành phần chính:</strong> <span id="dpp-material">Chất liệu</span></p>
+            <p><strong>Bao bì:</strong> <span id="dpp-packaging">Giấy</span></p>
+            
+            <div class="certifications-container">
+              <h4>Chứng nhận đạt được:</h4>
+              <div class="cert-badges" id="dpp-certs">
+                <!-- Cert badges -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dpp-section">
+          <h3>Bảng chỉ số bền vững (Sustainability Dashboard)</h3>
+          <p class="dashboard-subtitle">Cách sản phẩm này đóng góp cho hành tinh xanh của chúng ta:</p>
+          
+          <div class="metrics-grid">
+            <div class="metric-item">
+              <div class="metric-label-row">
+                <span>Vật liệu tái chế (Recycled Content)</span>
+                <strong id="dpp-val-recycled">0%</strong>
+              </div>
+              <div class="progress-bar"><div class="progress-bar-fill" id="dpp-bar-recycled" style="width: 0%"></div></div>
+            </div>
+            
+            <div class="metric-item">
+              <div class="metric-label-row">
+                <span>Khả năng tái chế (Recyclability Rate)</span>
+                <strong id="dpp-val-recyclability">0%</strong>
+              </div>
+              <div class="progress-bar"><div class="progress-bar-fill" id="dpp-bar-recyclability" style="width: 0%"></div></div>
+            </div>
+
+            <div class="metric-item">
+              <div class="metric-label-row">
+                <span>Bao bì tái sử dụng (Reusable Packaging)</span>
+                <strong id="dpp-val-reusable">0%</strong>
+              </div>
+              <div class="progress-bar"><div class="progress-bar-fill" id="dpp-bar-reusable" style="width: 0%"></div></div>
+            </div>
+
+            <div class="metric-item">
+              <div class="metric-label-row">
+                <span>Nguyên liệu tái tạo (Renewable Content)</span>
+                <strong id="dpp-val-renewable">0%</strong>
+              </div>
+              <div class="progress-bar"><div class="progress-bar-fill" id="dpp-bar-renewable" style="width: 0%"></div></div>
+            </div>
+          </div>
+
+          <div class="highlights-row">
+            <div class="highlight-box">
+              <i class="fa-solid fa-trash-arrow-up"></i>
+              <div>
+                <span>Mức giảm nhựa nguyên sinh</span>
+                <strong id="dpp-val-plastic-saved">0g</strong>
+              </div>
+            </div>
+            <div class="highlight-box">
+              <i class="fa-solid fa-cloud-sun"></i>
+              <div>
+                <span>CO₂ Tránh phát thải</span>
+                <strong id="dpp-val-co2-saved">0 kg</strong>
+              </div>
+            </div>
+          </div>
+          <span class="footnote">* Số liệu tham khảo nội bộ, chưa qua kiểm định của cơ quan độc lập.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <main id="app-view">
+    <!-- SPA templates will load here dynamically -->
+    <div class="loading-spinner">
+      <i class="fa-solid fa-spinner fa-spin"></i> Đang tải ứng dụng EcoKnot...
+    </div>
+  </main>
+
+  <!-- Notification Toast -->
+  <div class="toast-notification" id="toast"></div>
+
+  <!-- Global Footer -->
+  <footer class="app-footer">
+    <div class="footer-container">
+      <div class="footer-col brand-info">
+        <div class="footer-logo">
+          <img src="/images/Logo.jpg" alt="EcoKnot Logo" class="brand-logo">
+          <span>EcoKnot Gifting</span>
+        </div>
+        <p class="footer-desc">EcoKnot Gifting tiên phong trong cuộc cách mạng quà tặng bền vững. Từng nút thắt đay tỉ mỉ gắn kết yêu thương, mang thông điệp xanh che chở tương lai.</p>
+        <div class="social-icons">
+          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook-f"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" aria-label="TikTok"><i class="fa-brands fa-tiktok"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in"></i></a>
+        </div>
+      </div>
+      
+      <div class="footer-col footer-links">
+        <h4>Về chúng tôi</h4>
+        <ul>
+          <li><a href="#story">Hành trình EcoKnot</a></li>
+          <li><a href="#story">Giá trị cốt lõi</a></li>
+          <li><a href="#shop">Hệ sinh thái xanh</a></li>
+          <li><a href="#b2b">Khách hàng Doanh nghiệp</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col footer-links">
+        <h4>Chính sách</h4>
+        <ul>
+          <li><a href="#home">Chính sách bảo mật dữ liệu</a></li>
+          <li><a href="#home">Chính sách vận chuyển xanh</a></li>
+          <li><a href="#home">Chính sách đổi trả 100%</a></li>
+          <li><a href="#home">Điều khoản dịch vụ</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col newsletter-col">
+        <h4>Đăng ký nhận tin</h4>
+        <p>Để nhận những câu chuyện xanh và ưu đãi cá nhân sớm nhất.</p>
+        <form class="newsletter-form" id="newsletter-form" onsubmit="event.preventDefault(); alert('Cảm ơn bạn đã đăng ký nhận bản tin EcoKnot!'); this.reset();">
+          <input type="email" placeholder="Địa chỉ email của bạn..." required>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i></button>
+        </form>
+        <div class="footer-contact">
+          <p><i class="fa-solid fa-phone"></i> Hotline: 1900 6868</p>
+          <p><i class="fa-solid fa-envelope"></i> Email: cskh@ecoknot.vn</p>
+          <p><i class="fa-solid fa-map-location-dot"></i> Địa chỉ: Số 669 Đường Quốc lộ 1, Khu phố 3, Phường Linh Xuân</p>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer-bottom">
+      <p>&copy; 2026 EcoKnot Gifting. Bản quyền thuộc về đội ngũ phát triển. Dự án mẫu TMDT K24.</p>
+    </div>
+  </footer>
+
+  <!-- Application Script -->
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
