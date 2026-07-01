@@ -63,6 +63,7 @@
               <div class="dropdown-user-info" id="dropdown-user-email">user@email.com</div>
               <hr>
               <button class="dropdown-item" id="dropdown-account-link"><i class="fa-solid fa-user"></i> Tài khoản</button>
+              <button class="dropdown-item" id="dropdown-admin-link" style="display:none; color:var(--color-text);"><i class="fa-solid fa-gauge-high" style="color:#4a6572;"></i> Admin Dashboard <span class="admin-badge" style="margin-left:auto;">Admin</span></button>
               <button class="dropdown-item" id="dropdown-logout-btn"><i class="fa-solid fa-right-from-bracket"></i> Đăng xuất</button>
             </div>
           </div>
@@ -258,6 +259,9 @@
               <div class="cert-badges" id="dpp-certs">
                 <!-- Cert badges -->
               </div>
+              <button class="btn btn-outline cert-view-btn" id="dpp-cert-view-btn" style="margin-top:0.75rem; font-size:0.85rem;">
+                <i class="fa-solid fa-file-image"></i> Xem giấy chứng nhận
+              </button>
             </div>
           </div>
         </div>
@@ -318,6 +322,20 @@
           </div>
           <span class="footnote">* Số liệu tham khảo nội bộ, chưa qua kiểm định của cơ quan độc lập.</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Certificate Viewer Modal -->
+  <div class="modal-overlay" id="cert-modal">
+    <div class="cert-modal-card">
+      <button class="close-modal" id="close-cert-btn">&times;</button>
+      <div class="cert-modal-header">
+        <span class="dpp-badge"><i class="fa-solid fa-certificate"></i> Giấy chứng nhận sản phẩm</span>
+        <h3 id="cert-prod-name">Sản phẩm</h3>
+      </div>
+      <div class="cert-modal-body">
+        <img id="cert-image" src="./images/cert.jpg" alt="Giấy chứng nhận" style="width:100%; height:auto; border-radius:var(--border-radius);">
       </div>
     </div>
   </div>
@@ -389,6 +407,120 @@
       <p>&copy; 2026 EcoKnot Gifting. Bản quyền thuộc về đội ngũ phát triển. Dự án mẫu TMDT K24.</p>
     </div>
   </footer>
+
+  <!-- Add Product Modal -->
+  <div class="modal-overlay" id="add-product-modal">
+    <div class="onboarding-card" style="max-width:680px; width:100%;">
+      <button class="close-modal" id="close-add-product-btn">&times;</button>
+      <div class="success-screen" style="text-align: center; margin-bottom: 1.5rem;">
+        <div class="success-icon" style="font-size:2.5rem; margin-bottom: 0.5rem;">📦</div>
+        <h2>Thêm sản phẩm mới</h2>
+        <p style="color:var(--color-text-light);">Điền thông tin và chỉ số bền vững cho sản phẩm mới</p>
+      </div>
+      
+      <form id="add-product-form" style="display:flex; flex-direction:column; gap:1.2rem;">
+        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div class="form-group">
+            <label for="prod-name" style="font-weight:600; display:block; margin-bottom:0.4rem;">Tên sản phẩm *</label>
+            <input type="text" id="prod-name" placeholder="Ví dụ: Xà bông xơ mướp..." required style="width:100%; padding:0.6rem; border:1px solid var(--color-border); border-radius:8px;">
+          </div>
+          <div class="form-group">
+            <label for="prod-price" style="font-weight:600; display:block; margin-bottom:0.4rem;">Giá bán (VNĐ) *</label>
+            <input type="number" id="prod-price" placeholder="Ví dụ: 120000" required style="width:100%; padding:0.6rem; border:1px solid var(--color-border); border-radius:8px;">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="prod-image" style="font-weight:600; display:block; margin-bottom:0.4rem;">Link ảnh sản phẩm (URL) *</label>
+          <input type="url" id="prod-image" placeholder="Nhập đường dẫn ảnh sản phẩm..." required style="width:100%; padding:0.6rem; border:1px solid var(--color-border); border-radius:8px;">
+        </div>
+
+        <div class="form-group">
+          <label for="prod-desc" style="font-weight:600; display:block; margin-bottom:0.4rem;">Mô tả sản phẩm *</label>
+          <textarea id="prod-desc" rows="3" placeholder="Nhập thông tin chi tiết về sản phẩm..." required style="width:100%; padding:0.6rem; border:1px solid var(--color-border); border-radius:8px; resize:vertical; font-family:inherit;"></textarea>
+        </div>
+
+        <!-- Tags selector -->
+        <div class="form-group">
+          <label style="font-weight:600; display:block; margin-bottom:0.4rem;">Tags phân loại (Chọn tối thiểu 1)</label>
+          <div style="display:flex; flex-wrap:wrap; gap:0.5rem;" id="prod-tags-container">
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="eco" checked> eco</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="minimal"> minimal</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="vintage"> vintage</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="lovers"> lovers</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="family"> family</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="birthday"> birthday</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="valentine"> valentine</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="anniversary"> anniversary</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="thanks"> thanks</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="tet"> tet</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="clients"> clients</label>
+            <label style="display:flex; align-items:center; gap:0.3rem; background:var(--color-border-light); padding:0.3rem 0.6rem; border-radius:20px; font-size:0.85rem; cursor:pointer;"><input type="checkbox" name="prod-tags" value="partners"> partners</label>
+          </div>
+        </div>
+
+        <!-- Sustainability / DPP Details -->
+        <h3 style="margin-top:0.5rem; border-bottom:1px solid var(--color-border-light); padding-bottom:0.3rem; font-size:1.1rem; color:var(--color-accent);"><i class="fa-solid fa-leaf"></i> Chỉ số bền vững (DPP)</h3>
+
+        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.8rem;">
+          <div class="form-group">
+            <label for="prod-co2" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.2rem;">CO2 tránh phát thải (kg)</label>
+            <input type="number" step="0.1" id="prod-co2" placeholder="Ví dụ: 1.2" value="1.0" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:6px; font-size:0.85rem;">
+          </div>
+          <div class="form-group">
+            <label for="prod-plastic" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.2rem;">Nhựa giảm thiểu (g)</label>
+            <input type="number" id="prod-plastic" placeholder="Ví dụ: 100" value="80" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:6px; font-size:0.85rem;">
+          </div>
+          <div class="form-group">
+            <label for="prod-recycled" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.2rem;">Vật liệu tái chế (%)</label>
+            <input type="number" id="prod-recycled" placeholder="0 - 100" value="85" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:6px; font-size:0.85rem;">
+          </div>
+        </div>
+
+        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.8rem;">
+          <div class="form-group">
+            <label for="prod-recyclability" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.2rem;">Tỷ lệ tái chế được (%)</label>
+            <input type="number" id="prod-recyclability" placeholder="0 - 100" value="100" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:6px; font-size:0.85rem;">
+          </div>
+          <div class="form-group">
+            <label for="prod-reusable-pkg" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.2rem;">Bao bì tái sử dụng (%)</label>
+            <input type="number" id="prod-reusable-pkg" placeholder="0 - 100" value="90" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:6px; font-size:0.85rem;">
+          </div>
+          <div class="form-group">
+            <label for="prod-renewable" style="font-size:0.8rem; font-weight:600; display:block; margin-bottom:0.2rem;">Vật liệu tái tạo (%)</label>
+            <input type="number" id="prod-renewable" placeholder="0 - 100" value="95" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:6px; font-size:0.85rem;">
+          </div>
+        </div>
+
+        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div class="form-group">
+            <label for="prod-origin" style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:0.3rem;">Nguồn gốc (Origin)</label>
+            <input type="text" id="prod-origin" placeholder="Ví dụ: Việt Nam" value="Việt Nam" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:8px; font-size:0.85rem;">
+          </div>
+          <div class="form-group">
+            <label for="prod-material" style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:0.3rem;">Chất liệu chính (Material)</label>
+            <input type="text" id="prod-material" placeholder="Ví dụ: Nguyên liệu hữu cơ..." value="Nguyên liệu hữu cơ tự nhiên" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:8px; font-size:0.85rem;">
+          </div>
+        </div>
+
+        <div class="form-row" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+          <div class="form-group">
+            <label for="prod-packaging" style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:0.3rem;">Bao bì (Packaging)</label>
+            <input type="text" id="prod-packaging" placeholder="Ví dụ: Hộp giấy tái chế..." value="Hộp giấy tái chế phân hủy sinh học" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:8px; font-size:0.85rem;">
+          </div>
+          <div class="form-group">
+            <label for="prod-certs" style="font-size:0.85rem; font-weight:600; display:block; margin-bottom:0.3rem;">Chứng chỉ (Certifications - phẩy để ngăn cách)</label>
+            <input type="text" id="prod-certs" placeholder="Ví dụ: FSC Certified, Cruelty-Free" value="FSC Certified, Cruelty-Free" style="width:100%; padding:0.5rem; border:1px solid var(--color-border); border-radius:8px; font-size:0.85rem;">
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.8rem; margin-top:1.5rem;">
+          <button type="button" class="btn" id="cancel-add-product-btn" style="background:#e0e0e0; color:var(--color-text); padding:0.6rem 1.2rem; border-radius:8px;">Hủy bỏ</button>
+          <button type="submit" class="btn btn-primary" style="padding:0.6rem 1.2rem; border-radius:8px; background-color:var(--color-accent); color:white;">Thêm sản phẩm</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Application Script -->
   <script type="module" src="/app.js"></script>

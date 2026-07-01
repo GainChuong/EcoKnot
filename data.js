@@ -70,9 +70,9 @@ export const PRODUCTS = [
   {
     id: "prod-candle",
     name: "Nến thơm sáp đậu nành Organic",
-    category: "item",
+    category: "handicraft",
     price: 150000,
-    image: "https://images.unsplash.com/photo-1603006905003-be475563bc59?auto=format&fit=crop&w=400&q=80",
+    image: "./images/candle.png",
     tags: ["eco", "minimal", "lovers", "family", "birthday", "valentine", "anniversary", "thanks"],
     description: "Nến thơm thảo mộc tự nhiên từ sáp đậu nành lành tính, không khói độc, mang hương thơm thư thái của tinh dầu cam ngọt và oải hương.",
     dpp: {
@@ -91,9 +91,9 @@ export const PRODUCTS = [
   {
     id: "prod-tea",
     name: "Trà hoa thảo mộc Hoàng Cúc",
-    category: "item",
+    category: "handicraft",
     price: 120000,
-    image: "https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=400&q=80",
+    image: "./images/tea.png",
     tags: ["eco", "vintage", "family", "clients", "partners", "thanks", "tet"],
     description: "Trà hoa cúc nguyên bông thu hoạch thủ công tại thung lũng sương mù, giúp an thần, ngủ ngon và thanh nhiệt cơ thể.",
     dpp: {
@@ -112,9 +112,9 @@ export const PRODUCTS = [
   {
     id: "prod-cup",
     name: "Ly tre tự nhiên khắc tên theo yêu cầu",
-    category: "item",
+    category: "handicraft",
     price: 95000,
-    image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=400&q=80",
+    image: "./images/bamboo_cup.png",
     tags: ["customization", "minimal", "friends", "colleagues", "birthday", "thanks", "sorry"],
     description: "Sản phẩm thủ công từ thân tre tự nhiên, qua xử lý sấy cát không hóa chất độc hại, phủ sáp ong bảo vệ bề mặt chống thấm nước.",
     dpp: {
@@ -133,9 +133,9 @@ export const PRODUCTS = [
   {
     id: "prod-soap",
     name: "Xà bông thảo dược Mướp Đắng Mật Ong",
-    category: "item",
+    category: "handicraft",
     price: 75000,
-    image: "https://images.unsplash.com/photo-1600857062241-98e5dba7f214?auto=format&fit=crop&w=400&q=80",
+    image: "./images/herbal_soap.png",
     tags: ["eco", "cute", "friends", "lovers", "family", "birthday", "thanks", "sorry"],
     description: "Xà bông sinh dược làm sạch dịu nhẹ từ dịch ép mướp đắng rừng kết hợp mật ong hoa bạc hà vùng cao nguyên đá.",
     dpp: {
@@ -154,9 +154,9 @@ export const PRODUCTS = [
   {
     id: "prod-notebook",
     name: "Sổ tay giấy tái chế Kraft Bìa Cứng",
-    category: "item",
+    category: "handicraft",
     price: 80000,
-    image: "https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=400&q=80",
+    image: "./images/kraft_notebook.png",
     tags: ["customization", "minimal", "friends", "colleagues", "clients", "partners", "birthday", "thanks", "corporate"],
     description: "Sổ tay ghi chép cầm tay tiện dụng, chất liệu giấy tái chế không tẩy trắng, chống lóa mắt khi viết dưới ánh sáng mạnh.",
     dpp: {
@@ -175,9 +175,9 @@ export const PRODUCTS = [
   {
     id: "prod-honey",
     name: "Mật ong rừng nguyên chất hoa nhãn",
-    category: "item",
+    category: "handicraft",
     price: 110000,
-    image: "https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?auto=format&fit=crop&w=400&q=80",
+    image: "./images/honey.png",
     tags: ["eco", "family", "clients", "partners", "thanks", "tet", "corporate"],
     description: "Mật ong đặc quánh, màu vàng hổ phách tự nhiên, thu hoạch từ các tổ ong rừng sâu trong thung lũng mùa hoa nhãn nở rộ.",
     dpp: {
@@ -191,6 +191,132 @@ export const PRODUCTS = [
       material: "100% Mật ong thiên nhiên nguyên chất",
       packaging: "Hũ thủy tinh lục giác dày dặn, nút bần cao cấp",
       certifications: ["VietGAP Organic", "HACCP Certified"]
+    }
+  },
+  {
+    id: "prod-tote",
+    name: "Túi vải Canvas nhuộm chàm tự nhiên",
+    category: "fashion",
+    price: 180000,
+    image: "./images/indigo_canvas_tote.png",
+    tags: ["eco", "minimal", "friends", "birthday", "thanks"],
+    description: "Túi canvas bền bỉ nhuộm chàm thủ công từ lá cây chàm tự nhiên vùng cao.",
+    dpp: {
+      recycledContent: 50,
+      recyclabilityRate: 100,
+      reusablePackaging: 100,
+      renewableMaterial: 100,
+      virginPlasticReduction: 300,
+      carbonFootprintAvoided: 2.5,
+      origin: "Tả Phìn, Sa Pa, Việt Nam",
+      material: "Sợi bông tự nhiên nhuộm chàm organic",
+      packaging: "Màng bọc xenlulo tự phân hủy sinh học",
+      certifications: ["Fair Trade", "OEKO-TEX Standard 100"]
+    }
+  },
+  {
+    id: "prod-scarf",
+    name: "Khăn lụa tơ tằm Bảo Lộc vẽ tay",
+    category: "fashion",
+    price: 320000,
+    image: "./images/silk_painted_scarf.png",
+    tags: ["luxury", "lovers", "family", "anniversary", "thanks"],
+    description: "Khăn lụa 100% tơ tằm tự nhiên Bảo Lộc vẽ tay họa tiết cỏ cây mộc mạc.",
+    dpp: {
+      recycledContent: 0,
+      recyclabilityRate: 100,
+      reusablePackaging: 95,
+      renewableMaterial: 100,
+      virginPlasticReduction: 120,
+      carbonFootprintAvoided: 1.8,
+      origin: "Bảo Lộc, Lâm Đồng, Việt Nam",
+      material: "100% Lụa tơ tằm tự nhiên vẽ màu organic",
+      packaging: "Hộp giấy tái chế thô mộc mạc",
+      certifications: ["Vietnam Silk", "Organic Craft"]
+    }
+  },
+  {
+    id: "prod-tray",
+    name: "Khay gỗ dừa khảm xà cừ nghệ thuật",
+    category: "handicraft",
+    price: 220000,
+    image: "./images/coconut_inlaid_tray.png",
+    tags: ["vintage", "family", "clients", "partners", "thanks", "tet"],
+    description: "Khay làm từ thân cây dừa già khảm họa tiết xà cừ óng ánh từ vỏ sò tự nhiên.",
+    dpp: {
+      recycledContent: 100,
+      recyclabilityRate: 100,
+      reusablePackaging: 90,
+      renewableMaterial: 100,
+      virginPlasticReduction: 500,
+      carbonFootprintAvoided: 4.2,
+      origin: "Mỏ Cày, Bến Tre, Việt Nam",
+      material: "Gỗ dừa lâu năm, vỏ xà cừ tự nhiên, sơn bóng an toàn",
+      packaging: "Màng bọc giấy tổ ong tự phân hủy",
+      certifications: ["Handicraft Quality", "Vietnamese Traditional Heritage"]
+    }
+  },
+  {
+    id: "prod-tea-set",
+    name: "Bộ ấm chén gốm mộc nung Bát Tràng",
+    category: "handicraft",
+    price: 450000,
+    image: "./images/ceramic_tea_set.png",
+    tags: ["vintage", "luxury", "family", "partners", "thanks", "tet"],
+    description: "Bộ ấm chén gốm mộc mạc nung nhiệt độ cao từ đất sét Bát Tràng truyền thống.",
+    dpp: {
+      recycledContent: 100,
+      recyclabilityRate: 100,
+      reusablePackaging: 90,
+      renewableMaterial: 100,
+      virginPlasticReduction: 800,
+      carbonFootprintAvoided: 6.8,
+      origin: "Bát Tràng, Gia Lâm, Hà Nội, Việt Nam",
+      material: "Đất sét tự nhiên nung lò gas nhiệt độ cao",
+      packaging: "Hộp giấy tái chế có vách ngăn carton bảo vệ chống sốc",
+      certifications: ["Bát Tràng Authentic", "Non-Toxic Lead Free"]
+    }
+  },
+  {
+    id: "prod-bamboo-notebook",
+    name: "Sổ tay bìa tre ép tự nhiên cao cấp",
+    category: "stationery",
+    price: 150000,
+    image: "./images/bamboo_notebook.png",
+    tags: ["customization", "minimal", "friends", "colleagues", "corporate"],
+    description: "Sổ tay cao cấp với bìa tre ép tự nhiên độc bản, ruột giấy kraft tái chế chống lóa.",
+    dpp: {
+      recycledContent: 85,
+      recyclabilityRate: 100,
+      reusablePackaging: 95,
+      renewableMaterial: 100,
+      virginPlasticReduction: 200,
+      carbonFootprintAvoided: 2.1,
+      origin: "Thanh Hóa, Việt Nam",
+      material: "Tre ép tự nhiên, giấy vụn văn phòng tái chế",
+      packaging: "Màng bọc xenlulo tự phân hủy sinh học",
+      certifications: ["FSC Recycled", "SGS Certified"]
+    }
+  },
+  {
+    id: "prod-bookmark",
+    name: "Bộ kẹp giấy & Bookmark đồng cổ điển",
+    category: "stationery",
+    price: 90000,
+    image: "./images/bronze_bookmark_set.png",
+    tags: ["minimal", "friends", "colleagues", "birthday", "thanks"],
+    description: "Bookmark mạ đồng cổ điển hình hoa lá tinh xảo giúp lưu giữ trang sách yêu thích.",
+    dpp: {
+      recycledContent: 90,
+      recyclabilityRate: 100,
+      reusablePackaging: 100,
+      renewableMaterial: 90,
+      virginPlasticReduction: 50,
+      carbonFootprintAvoided: 0.5,
+      origin: "Làng nghề gò đồng Đại Bái, Bắc Ninh, Việt Nam",
+      material: "Đồng tái chế mạ đồng cổ màu giả cổ",
+      packaging: "Thẻ giấy kraft xi măng bảo vệ",
+      certifications: ["Traditional Craft Certification"]
     }
   }
 ];
@@ -215,9 +341,8 @@ export const GIFT_BOX_CATEGORIES = [
   {
     id: "seasonal",
     name: "Seasonal Gift Box",
-    nameVi: "Hộp Quà Theo Mùa & Dịp Lễ",
+    nameVi: "Quà cho các dịp lễ & Sự kiện",
     description: "Lựa chọn và kết hợp sản phẩm trong các bộ sưu tập theo mùa hoặc dịp lễ (Valentine, Giáng sinh, Tết, Ngày Nhà giáo, Ngày Phụ nữ...) kèm lời nhắn cá nhân.",
-    icon: "fa-calendar-days",
     target: "Khách hàng cá nhân",
     color: "#e74c3c",
     occasions: ["valentine", "christmas", "tet", "birthday", "anniversary"]
@@ -225,32 +350,31 @@ export const GIFT_BOX_CATEGORIES = [
   {
     id: "daily",
     name: "Daily Gift Box",
-    nameVi: "Hộp Quà Hằng Ngày",
+    nameVi: "Quà xin lỗi, Cảm ơn & Động viên",
     description: "Lựa chọn sản phẩm và lời nhắn cá nhân cho các nhu cầu tặng quà hằng ngày như cảm ơn, chúc mừng, động viên hoặc không nhân dịp cụ thể.",
-    icon: "fa-heart",
     target: "Khách hàng cá nhân",
     color: "#e67e22",
     occasions: ["thanks", "sorry"]
   },
   {
     id: "premium",
-    name: "Premium Custom Gift Box",
-    nameVi: "Hộp Quà Cao Cấp Tùy Biến",
-    description: "Tự chọn sản phẩm từ hệ thống đối tác, tùy chỉnh lời nhắn, màu sắc, phụ kiện và một số chi tiết bao bì.",
-    icon: "fa-gem",
-    target: "Khách hàng cá nhân có nhu cầu cá nhân hóa cao",
+    name: "Premium Customize Gift Box",
+    nameVi: "Premium Customize",
+    description: "Tự chọn sản phẩm từ hệ thống, tùy chỉnh lời nhắn, màu sắc, phụ kiện và nhiều chi tiết bao bì theo phong cách riêng của bạn.",
+    target: "Khách hàng cá nhân",
     color: "#8e44ad",
-    occasions: ["customization", "luxury"]
+    occasions: ["customization", "luxury"],
+    redirect: "customizer"
   },
   {
     id: "corporate",
     name: "Corporate Gift Box",
-    nameVi: "Hộp Quà Doanh Nghiệp",
+    nameVi: "Quà Doanh nghiệp",
     description: "Dịch vụ quà tặng doanh nghiệp được thiết kế hoàn toàn theo yêu cầu, bao gồm lựa chọn sản phẩm, thiết kế hộp quà, túi đựng, thiệp, màu sắc chủ đạo, logo, thông điệp thương hiệu, chủ đề sự kiện,...",
-    icon: "fa-building",
     target: "Doanh nghiệp, tổ chức",
     color: "#2c3e50",
-    occasions: ["corporate", "partners", "clients"]
+    occasions: ["corporate", "partners", "clients"],
+    redirect: "b2b"
   }
 ];
 

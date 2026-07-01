@@ -1,6 +1,6 @@
 import { 
   ONBOARDING_QUESTIONS, 
-  PRODUCTS, 
+  PRODUCTS as INITIAL_PRODUCTS, 
   BOX_MATERIALS, 
   BOX_SIZES, 
   RIBBON_TYPES, 
@@ -10,21 +10,73 @@ import {
   CATEGORY_PRESETS
 } from './data.js';
 
+let PRODUCTS = [...INITIAL_PRODUCTS];
+
 // Image fallback placeholder (Green Eco Gift Box)
 const IMAGE_FALLBACK = "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80";
+
+const BOX_PATTERNS = {
+  leaf: {
+    image: "radial-gradient(circle, #e0f2f1 20%, transparent 20%), radial-gradient(circle, #e0f2f1 20%, transparent 20%)",
+    size: "10px 10px",
+    color: "#80cbc4",
+    position: "0 0, 5px 5px"
+  },
+  stripe: {
+    image: "repeating-linear-gradient(45deg, #d7ccc8, #d7ccc8 5px, #bcaaa4 5px, #bcaaa4 10px)",
+    size: "auto",
+    color: "transparent",
+    position: "auto"
+  },
+  dots: {
+    image: "radial-gradient(#d7ccc8 20%, transparent 20%), radial-gradient(#d7ccc8 20%, transparent 20%)",
+    size: "10px 10px",
+    color: "#efebe9",
+    position: "0 0, 5px 5px"
+  }
+};
+
+const RIBBON_PATTERNS = {
+  polka: {
+    image: "radial-gradient(circle, #ffffff 30%, transparent 30%)",
+    size: "6px 6px",
+    color: "#e74c3c",
+    position: "auto"
+  },
+  stripe: {
+    image: "repeating-linear-gradient(90deg, #3498db, #3498db 3px, #ffffff 3px, #ffffff 6px)",
+    size: "auto",
+    color: "transparent",
+    position: "auto"
+  },
+  grid: {
+    image: "linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)",
+    size: "4px 4px",
+    color: "#27ae60",
+    position: "auto"
+  }
+};
 
 // ==========================================================================
 // APPLICATION STATE
 // ==========================================================================
 const state = {
   currentRoute: 'home',
-  user: null, // email, password, preferenceProfile { recipient, interests, budget, occasions, style, sustainabilityScore }
+  user: null, // email, password, role, preferenceProfile { recipient, interests, budget, occasions, style, sustainabilityScore }
   cart: [], // { id, type: 'custom'/'preset', box, size, ribbon, items: [], card: { text, font, color }, photo: null, qty, price, metrics }
   customizer: {
     step: 1,
     box: BOX_MATERIALS[0].id,
     size: BOX_SIZES[0].id,
     ribbon: RIBBON_TYPES[0].id,
+    boxOptionType: 'color', // 'color' | 'pattern' | 'custom'
+    boxColor: '#f3ede2', // Default Kraft paper color
+    boxPattern: 'stripe', // Default pattern selection
+    boxCustomImage: null, // Custom base64 image
+    ribbonOptionType: 'color', // 'color' | 'pattern' | 'custom'
+    ribbonColor: '#bda58d', // Default jute color
+    ribbonPattern: 'polka', // Default pattern selection
+    ribbonCustomImage: null, // Custom base64 ribbon image
     items: [],
     cardText: '',
     cardFont: 'var(--font-body)',
@@ -39,6 +91,16 @@ const state = {
     quantity: 100,
     items: ['prod-candle', 'prod-tea']
   },
+  checkout: {
+    step: 1, // 1=shipping info, 2=delivery method, 3=payment, 4=review
+    shippingInfo: { name: '', phone: '', email: '', province: '', district: '', ward: '', address: '', note: '' },
+    deliveryMethod: 'standard', // standard | express | same_day
+    paymentMethod: 'cod', // cod | bank_transfer | momo | zalopay
+    couponCode: '',
+    couponDiscount: 0,
+    shipFee: 35000
+  },
+  adminOrderFilter: 'all',
   orders: [...MOCK_ORDERS],
   searchQuery: '',
   shopCategory: 'all',
@@ -71,6 +133,7 @@ function loadStateFromStorage() {
   const storedCart = localStorage.getItem('ek_cart');
   const storedOrders = localStorage.getItem('ek_orders');
   const storedAiEnabled = localStorage.getItem('ek_ai_enabled');
+  const storedProducts = localStorage.getItem('ek_products');
 
   if (storedUser) {
     state.user = JSON.parse(storedUser);
@@ -84,6 +147,9 @@ function loadStateFromStorage() {
   if (storedAiEnabled !== null) {
     state.aiEnabled = JSON.parse(storedAiEnabled);
   }
+  if (storedProducts) {
+    PRODUCTS = JSON.parse(storedProducts);
+  }
 
   updateCartCount();
   updateAuthUI();
@@ -96,24 +162,160 @@ function saveStateToStorage() {
   localStorage.setItem('ek_ai_enabled', JSON.stringify(state.aiEnabled));
 }
 
+function saveProductsToStorage() {
+  localStorage.setItem('ek_products', JSON.stringify(PRODUCTS));
+}
+
 function updateCartCount() {
   const count = state.cart.reduce((total, item) => total + item.qty, 0);
   document.getElementById('cart-count').innerText = count;
+}
+
+function updateNavigationLinks() {
+  const navLinksContainer = document.querySelector('.nav-links');
+  const mobileNavLinksContainer = document.querySelector('.mobile-nav-links');
+  
+  if (!navLinksContainer || !mobileNavLinksContainer) return;
+  
+  const isCurrentlyAdminPage = state.currentRoute === 'admin';
+  const isAdmin = state.user && state.user.role === 'admin';
+  
+  let desktopHtml = '';
+  let mobileHtml = '';
+  
+  if (isCurrentlyAdminPage && isAdmin) {
+    // Admin Dashboard navigation header links
+    const activeTab = state.adminCurrentTab || 'overview';
+    const tabs = [
+      { id: 'overview', icon: 'fa-gauge-high', label: 'Tổng quan' },
+      { id: 'orders', icon: 'fa-box', label: 'Quản lý đơn hàng' },
+      { id: 'products', icon: 'fa-tag', label: 'Quản lý sản phẩm' },
+      { id: 'sustainability', icon: 'fa-leaf', label: 'Sustainability' }
+    ];
+    
+    tabs.forEach(t => {
+      const isActive = activeTab === t.id ? 'active' : '';
+      desktopHtml += `<li><a href="#admin" class="nav-link ${isActive}" data-admin-tab="${t.id}"><i class="fa-solid ${t.icon}"></i> ${t.label}</a></li>`;
+      mobileHtml += `<li><a href="#admin" class="mobile-route ${isActive}" data-admin-tab="${t.id}"><i class="fa-solid ${t.icon}"></i> ${t.label}</a></li>`;
+    });
+    
+  } else if (isAdmin) {
+    // Admin logged in, but browsing normal pages (Home or Brand Story)
+    desktopHtml = `
+      <li><a href="#home" class="nav-link ${state.currentRoute === 'home' ? 'active' : ''}" data-route="home">Trang chủ</a></li>
+      <li><a href="#story" class="nav-link ${state.currentRoute === 'story' ? 'active' : ''}" data-route="story">Câu chuyện thương hiệu</a></li>
+      <li><a href="#admin" class="nav-link highlight-link" data-route="admin"><i class="fa-solid fa-gauge-high"></i> Admin Dashboard</a></li>
+    `;
+    mobileHtml = `
+      <li><a href="#home" class="mobile-route ${state.currentRoute === 'home' ? 'active' : ''}" data-route="home">Trang chủ</a></li>
+      <li><a href="#story" class="mobile-route ${state.currentRoute === 'story' ? 'active' : ''}" data-route="story">Câu chuyện thương hiệu</a></li>
+      <li><a href="#admin" class="mobile-route highlight-link" data-route="admin"><i class="fa-solid fa-gauge-high"></i> Admin Dashboard</a></li>
+    `;
+  } else {
+    // Regular user or guest
+    desktopHtml = `
+      <li><a href="#home" class="nav-link ${state.currentRoute === 'home' ? 'active' : ''}" data-route="home">Trang chủ</a></li>
+      <li><a href="#customizer" class="nav-link highlight-link ${state.currentRoute === 'customizer' ? 'active' : ''}" data-route="customizer"><i class="fa-solid fa-gift"></i> Tạo hộp quà</a></li>
+      <li><a href="#shop" class="nav-link ${state.currentRoute === 'shop' ? 'active' : ''}" data-route="shop">Cửa hàng</a></li>
+      <li><a href="#b2b" class="nav-link ${state.currentRoute === 'b2b' ? 'active' : ''}" data-route="b2b">Quà doanh nghiệp</a></li>
+      <li><a href="#story" class="nav-link ${state.currentRoute === 'story' ? 'active' : ''}" data-route="story">Câu chuyện thương hiệu</a></li>
+      <li><a href="#tracking" class="nav-link ${state.currentRoute === 'tracking' ? 'active' : ''}" data-route="tracking">Theo dõi đơn hàng</a></li>
+    `;
+    mobileHtml = `
+      <li><a href="#home" class="mobile-route ${state.currentRoute === 'home' ? 'active' : ''}" data-route="home">Trang chủ</a></li>
+      <li><a href="#customizer" class="mobile-route highlight-link ${state.currentRoute === 'customizer' ? 'active' : ''}" data-route="customizer"><i class="fa-solid fa-gift"></i> Tạo hộp quà</a></li>
+      <li><a href="#shop" class="mobile-route ${state.currentRoute === 'shop' ? 'active' : ''}" data-route="shop">Cửa hàng</a></li>
+      <li><a href="#b2b" class="mobile-route ${state.currentRoute === 'b2b' ? 'active' : ''}" data-route="b2b">Quà doanh nghiệp</a></li>
+      <li><a href="#story" class="mobile-route ${state.currentRoute === 'story' ? 'active' : ''}" data-route="story">Câu chuyện thương hiệu</a></li>
+      <li><a href="#tracking" class="mobile-route ${state.currentRoute === 'tracking' ? 'active' : ''}" data-route="tracking">Theo dõi đơn hàng</a></li>
+      <li><a href="#account" class="mobile-route ${state.currentRoute === 'account' ? 'active' : ''}" data-route="account"><i class="fa-solid fa-circle-user"></i> Tài khoản của tôi</a></li>
+    `;
+  }
+  
+  navLinksContainer.innerHTML = desktopHtml;
+  mobileNavLinksContainer.innerHTML = mobileHtml;
+  
+  // Re-bind event listeners for dynamically rendered links
+  navLinksContainer.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', (e) => {
+      const tabId = link.dataset.adminTab;
+      if (tabId) {
+        e.preventDefault();
+        state.adminCurrentTab = tabId;
+        renderAdmin();
+        updateNavigationLinks();
+      } else {
+        const route = link.dataset.route;
+        if (route) {
+          e.preventDefault();
+          navigateTo(route);
+        }
+      }
+    });
+  });
+  
+  mobileNavLinksContainer.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', (e) => {
+      // Close mobile nav
+      document.getElementById('mobile-nav').classList.remove('active');
+      const tabId = link.dataset.adminTab;
+      if (tabId) {
+        e.preventDefault();
+        state.adminCurrentTab = tabId;
+        renderAdmin();
+        updateNavigationLinks();
+      } else {
+        const route = link.dataset.route;
+        if (route) {
+          e.preventDefault();
+          navigateTo(route);
+        }
+      }
+    });
+  });
 }
 
 function updateAuthUI() {
   const loginBtn = document.getElementById('login-header-btn');
   const userMenu = document.getElementById('user-menu');
   const dropdownEmail = document.getElementById('dropdown-user-email');
+  const adminLink = document.getElementById('dropdown-admin-link');
+  const accountLink = document.getElementById('dropdown-account-link');
+  const divider = document.querySelector('#user-dropdown hr');
+  const cartBtn = document.getElementById('cart-toggle-btn');
+  const searchBox = document.querySelector('.search-box');
   
   if (state.user) {
     loginBtn.style.display = 'none';
     userMenu.style.display = 'flex';
     dropdownEmail.innerText = state.user.email || 'user@ecoknot.vn';
+    
+    // Hide all items except Logout button for Admin role
+    if (state.user.role === 'admin') {
+      if (adminLink) adminLink.style.display = 'none';
+      if (accountLink) accountLink.style.display = 'none';
+      if (divider) divider.style.display = 'none';
+      if (cartBtn) cartBtn.style.display = 'none';
+      if (searchBox) searchBox.style.display = 'none';
+    } else {
+      if (adminLink) adminLink.style.display = 'none';
+      if (accountLink) accountLink.style.display = 'flex';
+      if (divider) divider.style.display = 'block';
+      if (cartBtn) cartBtn.style.display = '';
+      if (searchBox) searchBox.style.display = 'flex';
+    }
   } else {
-    loginBtn.style.display = 'flex';
+    loginBtn.style.display = '';
     userMenu.style.display = 'none';
+    if (adminLink) adminLink.style.display = 'none';
+    if (accountLink) accountLink.style.display = 'none';
+    if (divider) divider.style.display = 'none';
+    if (cartBtn) cartBtn.style.display = '';
+    if (searchBox) searchBox.style.display = 'flex';
   }
+  
+  // Update header links dynamically
+  updateNavigationLinks();
 }
 
 // ==========================================================================
@@ -126,31 +328,44 @@ const routes = {
   b2b: renderB2B,
   story: renderStory,
   tracking: renderTracking,
-  account: renderAccount
+  account: renderAccount,
+  checkout: renderCheckout,
+  admin: renderAdmin
 };
 
 function navigateTo(route) {
+  // If user is Admin, they shouldn't access shopping or checkout routes
+  if (state.user && state.user.role === 'admin') {
+    if (['customizer', 'shop', 'b2b', 'checkout'].includes(route)) {
+      showToast('Tài khoản quản trị viên không thể sử dụng chức năng mua hàng!', 'warning');
+      route = 'admin';
+    }
+  }
+  
   state.currentRoute = route;
   window.location.hash = route;
   
   // Close mobile navigation overlay
   document.getElementById('mobile-nav').classList.remove('active');
+
+  // Wide layout cho admin & checkout, normal cho các trang còn lại
+  const appView = document.getElementById('app-view');
+  if (route === 'admin' || route === 'checkout') {
+    appView.classList.add('wide-page');
+  } else {
+    appView.classList.remove('wide-page');
+  }
   
   // Render route content
   const renderFn = routes[route] || renderHome;
   renderFn();
   
-  // Update nav links active class
-  document.querySelectorAll('.nav-link').forEach(link => {
-    if (link.dataset.route === route) {
-      link.classList.add('active');
-    } else {
-      link.classList.remove('active');
-    }
-  });
+  // Rebuild navigation links to show tab highlights correctly
+  updateNavigationLinks();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
 
 // ==========================================================================
 // ONBOARDING SURVEY
@@ -416,6 +631,12 @@ function openDppModal(prodId) {
     `;
   });
 
+  // Wire up cert view button
+  const certViewBtn = document.getElementById('dpp-cert-view-btn');
+  if (certViewBtn) {
+    certViewBtn.onclick = () => openCertViewer(prod.id);
+  }
+
   // Render progress metrics
   document.getElementById('dpp-val-recycled').innerText = `${dpp.recycledContent}%`;
   document.getElementById('dpp-bar-recycled').style.width = `${dpp.recycledContent}%`;
@@ -434,6 +655,15 @@ function openDppModal(prodId) {
 
   document.getElementById('dpp-modal').classList.add('active');
 }
+
+function openCertViewer(prodId) {
+  const prod = PRODUCTS.find(x => x.id === prodId);
+  if (!prod) return;
+  document.getElementById('cert-prod-name').innerText = prod.name;
+  document.getElementById('cert-image').src = './images/cert.jpg';
+  document.getElementById('cert-modal').classList.add('active');
+}
+window.openCertViewer = openCertViewer;
 window.openDppModal = openDppModal; // expose globally
 
 // ==========================================================================
@@ -472,7 +702,6 @@ function renderHome() {
   GIFT_BOX_CATEGORIES.forEach(cat => {
     html += `
       <div class="category-card" data-category="${cat.id}" style="--cat-color: ${cat.color};">
-        <div class="category-icon"><i class="fa-solid ${cat.icon}"></i></div>
         <div class="category-info">
           <h3>${cat.nameVi}</h3>
           <p>${cat.description.length > 100 ? cat.description.substring(0, 100) + '...' : cat.description}</p>
@@ -491,6 +720,35 @@ function renderHome() {
     </section>
   `;
 
+  // Danh mục vật phẩm rời
+  const PRODUCT_CATEGORIES_HOME = [
+    { id: 'fashion', nameVi: 'Đồ thời trang', icon: 'fa-shirt', color: '#e91e63', count: PRODUCTS.filter(p => p.category === 'fashion').length },
+    { id: 'handicraft', nameVi: 'Đồ thủ công mỹ nghệ', icon: 'fa-hand-sparkles', color: '#ff6f00', count: PRODUCTS.filter(p => p.category === 'handicraft').length },
+    { id: 'stationery', nameVi: 'Văn phòng phẩm', icon: 'fa-pen-fancy', color: '#1565c0', count: PRODUCTS.filter(p => p.category === 'stationery').length }
+  ];
+  html += `
+    <section class="mb-4">
+      <div class="section-title-container">
+        <h2>Vật phẩm rời</h2>
+        <p class="section-subtitle">Chọn từng món quà riêng lẻ theo sở thích</p>
+      </div>
+      <div class="category-grid">
+        ${PRODUCT_CATEGORIES_HOME.map(cat => `
+          <div class="category-card product-cat-card" data-category="${cat.id}" style="--cat-color: ${cat.color};">
+            <div class="category-info">
+              <h3><i class="fa-solid ${cat.icon}"></i> ${cat.nameVi}</h3>
+              <p>Khám phá bộ sưu tập ${cat.nameVi.toLowerCase()} thủ công, bền vững.</p>
+              <div class="category-meta">
+                <span class="category-count">${cat.count} sản phẩm</span>
+              </div>
+            </div>
+            <button class="btn btn-outline product-cat-explore-btn" data-category="${cat.id}">Khám phá <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `;
+
   // Emotion/Occasion Categories
   html += `
     <section class="mb-4">
@@ -500,27 +758,22 @@ function renderHome() {
       </div>
       <div class="emotion-grid">
         <div class="emotion-card" data-category="thanks">
-          <div class="emotion-icon"><i class="fa-solid fa-heart"></i></div>
           <h3>Cảm ơn</h3>
           <p>Tri ân & chân thành</p>
         </div>
         <div class="emotion-card" data-category="sorry">
-          <div class="emotion-icon"><i class="fa-solid fa-face-smile"></i></div>
           <h3>Xin lỗi</h3>
           <p>Hàn gắn & sẻ chia</p>
         </div>
         <div class="emotion-card" data-category="birthday">
-          <div class="emotion-icon"><i class="fa-solid fa-cake-candles"></i></div>
           <h3>Sinh nhật</h3>
           <p>Niềm vui & kỷ niệm</p>
         </div>
         <div class="emotion-card" data-category="valentine">
-          <div class="emotion-icon"><i class="fa-solid fa-fire"></i></div>
           <h3>Người yêu</h3>
           <p>Nồng nàn & lãng mạn</p>
         </div>
         <div class="emotion-card" data-category="tet">
-          <div class="emotion-icon"><i class="fa-solid fa-leaf"></i></div>
           <h3>Dịp Tết</h3>
           <p>An khang & xanh tươi</p>
         </div>
@@ -690,6 +943,11 @@ function renderHome() {
     card.addEventListener('click', (e) => {
       if (e.target.closest('.category-explore-btn')) return;
       const catId = card.dataset.category;
+      const cat = GIFT_BOX_CATEGORIES.find(c => c.id === catId);
+      if (cat?.redirect) {
+        navigateTo(cat.redirect);
+        return;
+      }
       state.shopCategory = catId;
       state.shopTag = 'all';
       navigateTo('shop');
@@ -698,6 +956,32 @@ function renderHome() {
 
   // Category explore buttons
   document.querySelectorAll('.category-explore-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const catId = btn.dataset.category;
+      const cat = GIFT_BOX_CATEGORIES.find(c => c.id === catId);
+      if (cat?.redirect) {
+        navigateTo(cat.redirect);
+        return;
+      }
+      state.shopCategory = catId;
+      state.shopTag = 'all';
+      navigateTo('shop');
+    });
+  });
+
+  // Product category card clicks
+  document.querySelectorAll('.product-cat-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('.product-cat-explore-btn')) return;
+      const catId = card.dataset.category;
+      state.shopCategory = catId;
+      state.shopTag = 'all';
+      navigateTo('shop');
+    });
+  });
+
+  // Product category explore buttons
+  document.querySelectorAll('.product-cat-explore-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const catId = btn.dataset.category;
       state.shopCategory = catId;
@@ -714,6 +998,43 @@ function renderHome() {
       navigateTo('shop');
     });
   });
+}
+
+function getBoxMockupStyle() {
+  const isBamboo = state.customizer.box === 'box-bamboo';
+  if (state.customizer.boxOptionType === 'color') {
+    return `background-color: ${state.customizer.boxColor}; background-image: none; border-color: var(--color-border);`;
+  } else if (state.customizer.boxOptionType === 'pattern') {
+    const pat = BOX_PATTERNS[state.customizer.boxPattern];
+    if (pat) {
+      return `background-image: ${pat.image}; background-size: ${pat.size}; background-position: ${pat.position}; background-color: ${pat.color}; border-color: var(--color-border);`;
+    }
+  } else if (state.customizer.boxOptionType === 'custom' && state.customizer.boxCustomImage) {
+    return `background-image: url(${state.customizer.boxCustomImage}); background-size: cover; background-position: center; border-color: var(--color-border);`;
+  }
+  // Default fallback
+  if (isBamboo) {
+    return `background-image: repeating-linear-gradient(45deg, #e3dac9 0px, #e3dac9 10px, #d7cbaf 10px, #d7cbaf 20px); border-color: #b59f77;`;
+  } else {
+    return `background-color: #f3ede2; background-image: none; border-color: var(--color-border);`;
+  }
+}
+
+function getRibbonStyle() {
+  if (state.customizer.ribbonOptionType === 'color') {
+    return `background-color: ${state.customizer.ribbonColor}; background-image: none;`;
+  } else if (state.customizer.ribbonOptionType === 'pattern') {
+    const pat = RIBBON_PATTERNS[state.customizer.ribbonPattern];
+    if (pat) {
+      return `background-image: ${pat.image}; background-size: ${pat.size}; background-position: ${pat.position}; background-color: ${pat.color};`;
+    }
+  } else if (state.customizer.ribbonOptionType === 'custom' && state.customizer.ribbonCustomImage) {
+    return `background-image: url(${state.customizer.ribbonCustomImage}); background-size: cover; background-position: center; background-color: transparent;`;
+  }
+  // Default ribbon type color
+  const activeRibbon = RIBBON_TYPES.find(x => x.id === state.customizer.ribbon);
+  const color = activeRibbon ? activeRibbon.color : '#bda58d';
+  return `background-color: ${color}; background-image: none;`;
 }
 
 // 2. Customizer Page View (Tạo Hộp Quà)
@@ -750,11 +1071,11 @@ function renderCustomizer() {
         
         <div class="live-preview-box-container">
           <!-- Live mockup frame rendering materials and selections -->
-          <div class="box-mockup ${state.customizer.box === 'box-bamboo' ? 'bamboo' : ''}" id="customizer-box-mockup">
+          <div class="box-mockup ${state.customizer.box === 'box-bamboo' && state.customizer.boxOptionType !== 'color' && state.customizer.boxOptionType !== 'pattern' && state.customizer.boxOptionType !== 'custom' ? 'bamboo' : ''}" id="customizer-box-mockup" style="${getBoxMockupStyle()}">
             <!-- Ribbon bands -->
-            <div class="ribbon-overlay active-ribbon" style="--ribbon-color: ${activeRibbon.color};"></div>
-            <div class="ribbon-horizontal active-ribbon" style="--ribbon-color: ${activeRibbon.color};"></div>
-            <div class="ribbon-knot active-ribbon" style="--ribbon-color: ${activeRibbon.color};"></div>
+            <div class="ribbon-overlay active-ribbon" style="${getRibbonStyle()}"></div>
+            <div class="ribbon-horizontal active-ribbon" style="${getRibbonStyle()}"></div>
+            <div class="ribbon-knot active-ribbon" style="${getRibbonStyle()}"></div>
 
             <!-- Items Slots grid (Max 8 slots depending on size) -->
             <div class="items-inside-preview">
@@ -821,6 +1142,73 @@ function renderCustomizer() {
     `;
   });
 
+  // Custom box styling panel
+  html += `
+    <div class="customizer-options-panel" style="margin-top: -0.5rem; margin-bottom: 1.5rem; padding: 1rem; border: 1px dashed var(--color-border); border-radius: 8px; background-color: #faf8f5;">
+      <h4 style="font-size: 0.95rem; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem; color: var(--color-text);">
+        <i class="fa-solid fa-palette" style="color: var(--color-accent);"></i> Tùy biến họa tiết/màu sắc vỏ hộp
+      </h4>
+      <div class="customizer-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 0.8rem;">
+        <button class="tab-btn ${state.customizer.boxOptionType === 'color' ? 'active' : ''}" data-box-opt="color" style="flex: 1; padding: 0.4rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--color-border); background: white; cursor: pointer; color: var(--color-text);">Màu sắc</button>
+        <button class="tab-btn ${state.customizer.boxOptionType === 'pattern' ? 'active' : ''}" data-box-opt="pattern" style="flex: 1; padding: 0.4rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--color-border); background: white; cursor: pointer; color: var(--color-text);">Họa tiết</button>
+        <button class="tab-btn ${state.customizer.boxOptionType === 'custom' ? 'active' : ''}" data-box-opt="custom" style="flex: 1; padding: 0.4rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--color-border); background: white; cursor: pointer; color: var(--color-text);">Tự tải lên</button>
+      </div>
+      
+      <!-- Tab color -->
+      <div class="opt-content box-opt-color" style="display: ${state.customizer.boxOptionType === 'color' ? 'block' : 'none'};">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          ${[
+            { color: '#f3ede2', name: 'Kraft Tự Nhiên' },
+            { color: '#d7ccc8', name: 'Mộc Mạc' },
+            { color: '#e0f2f1', name: 'Xanh Bạc Hà' },
+            { color: '#fce4ec', name: 'Hồng Phấn' },
+            { color: '#a5d6a7', name: 'Xanh Rêu' },
+            { color: '#fff9c4', name: 'Vàng Nắng' }
+          ].map(c => `
+            <span class="color-swatch-box ${state.customizer.boxColor === c.color ? 'active' : ''}" 
+                  data-color="${c.color}" 
+                  title="${c.name}"
+                  style="width: 26px; height: 26px; background-color: ${c.color}; border-radius: 50%; border: 2px solid ${state.customizer.boxColor === c.color ? 'var(--color-accent)' : '#ddd'}; box-shadow: ${state.customizer.boxColor === c.color ? '0 0 0 2px var(--color-accent)' : 'none'}; cursor: pointer; display: inline-block;">
+            </span>
+          `).join('')}
+          <div style="display:flex; align-items:center; gap:0.3rem; margin-left:0.5rem;">
+            <span style="font-size:0.75rem; color:var(--color-text-light);">Tự chọn:</span>
+            <input type="color" id="box-custom-color-picker" value="${state.customizer.boxColor}" style="border: none; padding: 0; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; background:none;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab pattern -->
+      <div class="opt-content box-opt-pattern" style="display: ${state.customizer.boxOptionType === 'pattern' ? 'block' : 'none'};">
+        <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+          <div class="pattern-swatch-box" data-pattern="leaf" style="width: 50px; height: 50px; background-image: radial-gradient(circle, #e0f2f1 20%, transparent 20%), radial-gradient(circle, #e0f2f1 20%, transparent 20%); background-size: 10px 10px; background-position: 0 0, 5px 5px; background-color: #80cbc4; border: 2px solid ${state.customizer.boxPattern === 'leaf' ? 'var(--color-accent)' : '#ddd'}; box-shadow: ${state.customizer.boxPattern === 'leaf' ? '0 0 0 2px var(--color-accent)' : 'none'}; border-radius: 4px; cursor: pointer; flex-shrink: 0;" title="Họa tiết Lá Xanh"></div>
+          <div class="pattern-swatch-box" data-pattern="stripe" style="width: 50px; height: 50px; background-image: repeating-linear-gradient(45deg, #d7ccc8, #d7ccc8 5px, #bcaaa4 5px, #bcaaa4 10px); border: 2px solid ${state.customizer.boxPattern === 'stripe' ? 'var(--color-accent)' : '#ddd'}; box-shadow: ${state.customizer.boxPattern === 'stripe' ? '0 0 0 2px var(--color-accent)' : 'none'}; border-radius: 4px; cursor: pointer; flex-shrink: 0;" title="Sọc Kraft Eco"></div>
+          <div class="pattern-swatch-box" data-pattern="dots" style="width: 50px; height: 50px; background-image: radial-gradient(#d7ccc8 20%, transparent 20%), radial-gradient(#d7ccc8 20%, transparent 20%); background-size: 10px 10px; background-position: 0 0, 5px 5px; background-color: #efebe9; border: 2px solid ${state.customizer.boxPattern === 'dots' ? 'var(--color-accent)' : '#ddd'}; box-shadow: ${state.customizer.boxPattern === 'dots' ? '0 0 0 2px var(--color-accent)' : 'none'}; border-radius: 4px; cursor: pointer; flex-shrink: 0;" title="Chấm Tròn Organic"></div>
+        </div>
+      </div>
+
+      <!-- Tab custom upload -->
+      <div class="opt-content box-opt-custom" style="display: ${state.customizer.boxOptionType === 'custom' ? 'block' : 'none'};">
+        <div style="display:flex; flex-direction:column; gap:0.5rem;">
+          <label style="display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed #ccc; border-radius: 6px; padding: 0.8rem; cursor: pointer; background: white; margin:0;">
+            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.2rem; color: var(--color-accent); margin-bottom: 0.3rem;"></i>
+            <span style="font-size: 0.75rem; color: var(--color-text-light); text-align:center;">Tải ảnh họa tiết vỏ hộp lên (.png, .jpg)</span>
+            <input type="file" id="box-custom-image-file" accept="image/*" style="display: none;">
+          </label>
+          ${state.customizer.boxCustomImage ? `
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #e8f5e9; padding: 0.4rem 0.8rem; border-radius: 6px;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <img src="${state.customizer.boxCustomImage}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                <span style="font-size: 0.75rem; color: #2e7d32; font-weight:500;"><i class="fa-solid fa-circle-check"></i> Đã tải lên</span>
+              </div>
+              <button id="remove-box-custom-img" style="background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.8rem;"><i class="fa-solid fa-trash"></i> Xóa</button>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
   html += `
             </div>
           </div>
@@ -866,6 +1254,73 @@ function renderCustomizer() {
       </div>
     `;
   });
+
+  // Custom ribbon styling panel
+  html += `
+    <div class="customizer-options-panel" style="margin-top: -0.5rem; margin-bottom: 1.5rem; padding: 1rem; border: 1px dashed var(--color-border); border-radius: 8px; background-color: #faf8f5;">
+      <h4 style="font-size: 0.95rem; margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem; color: var(--color-text);">
+        <i class="fa-solid fa-palette" style="color: var(--color-accent);"></i> Tùy biến họa tiết/màu sắc dây buộc
+      </h4>
+      <div class="customizer-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 0.8rem;">
+        <button class="tab-btn ${state.customizer.ribbonOptionType === 'color' ? 'active' : ''}" data-ribbon-opt="color" style="flex: 1; padding: 0.4rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--color-border); background: white; cursor: pointer; color: var(--color-text);">Màu sắc</button>
+        <button class="tab-btn ${state.customizer.ribbonOptionType === 'pattern' ? 'active' : ''}" data-ribbon-opt="pattern" style="flex: 1; padding: 0.4rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--color-border); background: white; cursor: pointer; color: var(--color-text);">Họa tiết</button>
+        <button class="tab-btn ${state.customizer.ribbonOptionType === 'custom' ? 'active' : ''}" data-ribbon-opt="custom" style="flex: 1; padding: 0.4rem; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--color-border); background: white; cursor: pointer; color: var(--color-text);">Tự tải lên</button>
+      </div>
+      
+      <!-- Tab color -->
+      <div class="opt-content ribbon-opt-color" style="display: ${state.customizer.ribbonOptionType === 'color' ? 'block' : 'none'};">
+        <div style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+          ${[
+            { color: '#bda58d', name: 'Đay Mộc Mạc' },
+            { color: '#8fad88', name: 'Lá Xanh' },
+            { color: '#e74c3c', name: 'Đỏ Nhung' },
+            { color: '#3498db', name: 'Xanh Lam' },
+            { color: '#f1c40f', name: 'Vàng Lụa' },
+            { color: '#ffffff', name: 'Trắng Sữa' }
+          ].map(c => `
+            <span class="color-swatch-ribbon ${state.customizer.ribbonColor === c.color ? 'active' : ''}" 
+                  data-color="${c.color}" 
+                  title="${c.name}"
+                  style="width: 26px; height: 26px; background-color: ${c.color}; border-radius: 50%; border: 2px solid ${state.customizer.ribbonColor === c.color ? 'var(--color-accent)' : '#ddd'}; box-shadow: ${state.customizer.ribbonColor === c.color ? '0 0 0 2px var(--color-accent)' : 'none'}; cursor: pointer; display: inline-block;">
+            </span>
+          `).join('')}
+          <div style="display:flex; align-items:center; gap:0.3rem; margin-left:0.5rem;">
+            <span style="font-size:0.75rem; color:var(--color-text-light);">Tự chọn:</span>
+            <input type="color" id="ribbon-custom-color-picker" value="${state.customizer.ribbonColor}" style="border: none; padding: 0; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; background:none;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab pattern -->
+      <div class="opt-content ribbon-opt-pattern" style="display: ${state.customizer.ribbonOptionType === 'pattern' ? 'block' : 'none'};">
+        <div style="display: flex; gap: 0.8rem; flex-wrap: wrap;">
+          <div class="pattern-swatch-ribbon" data-pattern="polka" style="width: 50px; height: 50px; background-image: radial-gradient(circle, #ffffff 30%, transparent 30%); background-size: 6px 6px; background-color: #e74c3c; border: 2px solid ${state.customizer.ribbonPattern === 'polka' ? 'var(--color-accent)' : '#ddd'}; box-shadow: ${state.customizer.ribbonPattern === 'polka' ? '0 0 0 2px var(--color-accent)' : 'none'}; border-radius: 4px; cursor: pointer; flex-shrink: 0;" title="Chấm Bi Polka"></div>
+          <div class="pattern-swatch-ribbon" data-pattern="stripe" style="width: 50px; height: 50px; background-image: repeating-linear-gradient(90deg, #3498db, #3498db 3px, #ffffff 3px, #ffffff 6px); border: 2px solid ${state.customizer.ribbonPattern === 'stripe' ? 'var(--color-accent)' : '#ddd'}; box-shadow: ${state.customizer.ribbonPattern === 'stripe' ? '0 0 0 2px var(--color-accent)' : 'none'}; border-radius: 4px; cursor: pointer; flex-shrink: 0;" title="Sọc Xanh-Trắng"></div>
+          <div class="pattern-swatch-ribbon" data-pattern="grid" style="width: 50px; height: 50px; background-image: linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px); background-size: 4px 4px; background-color: #27ae60; border: 2px solid ${state.customizer.ribbonPattern === 'grid' ? 'var(--color-accent)' : '#ddd'}; box-shadow: ${state.customizer.ribbonPattern === 'grid' ? '0 0 0 2px var(--color-accent)' : 'none'}; border-radius: 4px; cursor: pointer; flex-shrink: 0;" title="Caru Lục"></div>
+        </div>
+      </div>
+
+      <!-- Tab custom upload -->
+      <div class="opt-content ribbon-opt-custom" style="display: ${state.customizer.ribbonOptionType === 'custom' ? 'block' : 'none'};">
+        <div style="display:flex; flex-direction:column; gap:0.5rem;">
+          <label style="display: flex; flex-direction: column; align-items: center; justify-content: center; border: 2px dashed #ccc; border-radius: 6px; padding: 0.8rem; cursor: pointer; background: white; margin:0;">
+            <i class="fa-solid fa-cloud-arrow-up" style="font-size: 1.2rem; color: var(--color-accent); margin-bottom: 0.3rem;"></i>
+            <span style="font-size: 0.75rem; color: var(--color-text-light); text-align:center;">Tải ảnh họa tiết dây ruy băng lên (.png, .jpg)</span>
+            <input type="file" id="ribbon-custom-image-file" accept="image/*" style="display: none;">
+          </label>
+          ${state.customizer.ribbonCustomImage ? `
+            <div style="display: flex; align-items: center; justify-content: space-between; background: #e8f5e9; padding: 0.4rem 0.8rem; border-radius: 6px;">
+              <div style="display: flex; align-items: center; gap: 0.5rem;">
+                <img src="${state.customizer.ribbonCustomImage}" style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">
+                <span style="font-size: 0.75rem; color: #2e7d32; font-weight:500;"><i class="fa-solid fa-circle-check"></i> Đã tải lên</span>
+              </div>
+              <button id="remove-ribbon-custom-img" style="background: none; border: none; color: #c62828; cursor: pointer; font-size: 0.8rem;"><i class="fa-solid fa-trash"></i> Xóa</button>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+  `;
 
   html += `
             </div>
@@ -1065,6 +1520,130 @@ function renderCustomizer() {
     });
   });
 
+  // Bind Box styling option type tabs
+  document.querySelectorAll('[data-box-opt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.customizer.boxOptionType = btn.dataset.boxOpt;
+      renderCustomizer();
+    });
+  });
+
+  // Bind Box color swatch
+  document.querySelectorAll('.color-swatch-box').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      state.customizer.boxColor = swatch.dataset.color;
+      state.customizer.boxOptionType = 'color';
+      renderCustomizer();
+    });
+  });
+
+  // Bind Box custom color picker
+  const boxColorPicker = document.getElementById('box-custom-color-picker');
+  if (boxColorPicker) {
+    boxColorPicker.addEventListener('change', (e) => {
+      state.customizer.boxColor = e.target.value;
+      state.customizer.boxOptionType = 'color';
+      renderCustomizer();
+    });
+  }
+
+  // Bind Box pattern swatch
+  document.querySelectorAll('.pattern-swatch-box').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      state.customizer.boxPattern = swatch.dataset.pattern;
+      state.customizer.boxOptionType = 'pattern';
+      renderCustomizer();
+    });
+  });
+
+  // Bind Box custom image upload
+  const boxCustomFile = document.getElementById('box-custom-image-file');
+  if (boxCustomFile) {
+    boxCustomFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          state.customizer.boxCustomImage = event.target.result;
+          state.customizer.boxOptionType = 'custom';
+          renderCustomizer();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  // Bind Remove Box custom image
+  const removeBoxCustomImg = document.getElementById('remove-box-custom-img');
+  if (removeBoxCustomImg) {
+    removeBoxCustomImg.addEventListener('click', () => {
+      state.customizer.boxCustomImage = null;
+      renderCustomizer();
+    });
+  }
+
+  // Bind Ribbon styling option type tabs
+  document.querySelectorAll('[data-ribbon-opt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.customizer.ribbonOptionType = btn.dataset.ribbonOpt;
+      renderCustomizer();
+    });
+  });
+
+  // Bind Ribbon color swatch
+  document.querySelectorAll('.color-swatch-ribbon').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      state.customizer.ribbonColor = swatch.dataset.color;
+      state.customizer.ribbonOptionType = 'color';
+      renderCustomizer();
+    });
+  });
+
+  // Bind Ribbon custom color picker
+  const ribbonColorPicker = document.getElementById('ribbon-custom-color-picker');
+  if (ribbonColorPicker) {
+    ribbonColorPicker.addEventListener('change', (e) => {
+      state.customizer.ribbonColor = e.target.value;
+      state.customizer.ribbonOptionType = 'color';
+      renderCustomizer();
+    });
+  }
+
+  // Bind Ribbon pattern swatch
+  document.querySelectorAll('.pattern-swatch-ribbon').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      state.customizer.ribbonPattern = swatch.dataset.pattern;
+      state.customizer.ribbonOptionType = 'pattern';
+      renderCustomizer();
+    });
+  });
+
+  // Bind Ribbon custom image upload
+  const ribbonCustomFile = document.getElementById('ribbon-custom-image-file');
+  if (ribbonCustomFile) {
+    ribbonCustomFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          state.customizer.ribbonCustomImage = event.target.result;
+          state.customizer.ribbonOptionType = 'custom';
+          renderCustomizer();
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  }
+
+  // Bind Remove Ribbon custom image
+  const removeRibbonCustomImg = document.getElementById('remove-ribbon-custom-img');
+  if (removeRibbonCustomImg) {
+    removeRibbonCustomImg.addEventListener('click', () => {
+      state.customizer.ribbonCustomImage = null;
+      renderCustomizer();
+    });
+  }
+
   // Step navigation buttons inside pages
   const next1 = document.getElementById('step-next-1');
   if (next1) next1.addEventListener('click', () => { state.customizer.step = 2; renderCustomizer(); });
@@ -1202,6 +1781,10 @@ function renderCustomizer() {
   const addCartBtn = document.getElementById('add-to-cart-custom-btn');
   if (addCartBtn) {
     addCartBtn.addEventListener('click', () => {
+      if (state.user && state.user.role === 'admin') {
+        showToast('Tài khoản quản trị viên không thể mua sắm!', 'warning');
+        return;
+      }
       if (state.customizer.items.length === 0) {
         showToast('Vui lòng thêm ít nhất 1 món quà vào hộp!');
         state.customizer.step = 2;
@@ -1239,6 +1822,14 @@ function renderCustomizer() {
         box: state.customizer.box,
         size: state.customizer.size,
         ribbon: state.customizer.ribbon,
+        boxOptionType: state.customizer.boxOptionType,
+        boxColor: state.customizer.boxColor,
+        boxPattern: state.customizer.boxPattern,
+        boxCustomImage: state.customizer.boxCustomImage,
+        ribbonOptionType: state.customizer.ribbonOptionType,
+        ribbonColor: state.customizer.ribbonColor,
+        ribbonPattern: state.customizer.ribbonPattern,
+        ribbonCustomImage: state.customizer.ribbonCustomImage,
         items: [...state.customizer.items],
         card: {
           text: state.customizer.cardText,
@@ -1269,6 +1860,14 @@ function renderCustomizer() {
         box: BOX_MATERIALS[0].id,
         size: BOX_SIZES[0].id,
         ribbon: RIBBON_TYPES[0].id,
+        boxOptionType: 'color',
+        boxColor: '#f3ede2',
+        boxPattern: 'stripe',
+        boxCustomImage: null,
+        ribbonOptionType: 'color',
+        ribbonColor: '#bda58d',
+        ribbonPattern: 'polka',
+        ribbonCustomImage: null,
         items: [],
         cardText: '',
         cardFont: 'var(--font-body)',
@@ -1305,12 +1904,30 @@ function renderShop() {
             ${GIFT_BOX_CATEGORIES.map(cat => `
               <label class="filter-item">
                 <input type="radio" name="shop-cat-filter" value="${cat.id}" ${state.shopCategory === cat.id ? 'checked' : ''}>
-                <span><i class="fa-solid ${cat.icon}" style="color:${cat.color}; width:16px;"></i> ${cat.nameVi}</span>
+                <span>${cat.nameVi}</span>
               </label>
             `).join('')}
+          </div>
+        </div>
+
+        <div class="filter-section">
+          <h3>Vật phẩm rời</h3>
+          <div class="filter-list">
             <label class="filter-item">
-              <input type="radio" name="shop-cat-filter" value="item" ${state.shopCategory === 'item' ? 'checked' : ''}>
-              <span>Vật phẩm rời</span>
+              <input type="radio" name="shop-cat-filter" value="all-items" ${state.shopCategory === 'all-items' ? 'checked' : ''}>
+              <span>Tất cả</span>
+            </label>
+            <label class="filter-item">
+              <input type="radio" name="shop-cat-filter" value="fashion" ${state.shopCategory === 'fashion' ? 'checked' : ''}>
+              <span>Đồ thời trang</span>
+            </label>
+            <label class="filter-item">
+              <input type="radio" name="shop-cat-filter" value="handicraft" ${state.shopCategory === 'handicraft' ? 'checked' : ''}>
+              <span>Đồ thủ công mỹ nghệ</span>
+            </label>
+            <label class="filter-item">
+              <input type="radio" name="shop-cat-filter" value="stationery" ${state.shopCategory === 'stationery' ? 'checked' : ''}>
+              <span>Văn phòng phẩm</span>
             </label>
           </div>
         </div>
@@ -1359,12 +1976,16 @@ function renderShop() {
   let itemsToRender = [];
   
   const isCategoryView = GIFT_BOX_CATEGORIES.some(c => c.id === state.shopCategory);
+  const PRODUCT_CATEGORIES = ['fashion', 'handicraft', 'stationery'];
+  const isProductCategoryView = PRODUCT_CATEGORIES.includes(state.shopCategory);
   
-  if (state.shopCategory === 'all' || state.shopCategory === 'item') {
+  if (state.shopCategory === 'all' || state.shopCategory === 'all-items' || isProductCategoryView) {
     PRODUCTS.forEach(prod => {
       if (state.shopTag === 'all' || prod.tags.includes(state.shopTag)) {
         if (state.searchQuery === '' || prod.name.toLowerCase().includes(state.searchQuery.toLowerCase())) {
-          itemsToRender.push({ data: prod, type: 'item' });
+          if (state.shopCategory === 'all' || state.shopCategory === 'all-items' || prod.category === state.shopCategory) {
+            itemsToRender.push({ data: prod, type: 'item' });
+          }
         }
       }
     });
@@ -1447,7 +2068,13 @@ function renderShop() {
   // Bind category filters
   document.querySelectorAll('input[name="shop-cat-filter"]').forEach(input => {
     input.addEventListener('change', (e) => {
-      state.shopCategory = e.target.value;
+      const catId = e.target.value;
+      const cat = GIFT_BOX_CATEGORIES.find(c => c.id === catId);
+      if (cat?.redirect) {
+        navigateTo(cat.redirect);
+        return;
+      }
+      state.shopCategory = catId;
       renderShop();
     });
   });
@@ -1472,6 +2099,10 @@ function renderShop() {
   // Add preset box directly to cart
   document.querySelectorAll('.add-preset-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      if (state.user && state.user.role === 'admin') {
+        showToast('Tài khoản quản trị viên không thể mua sắm!', 'warning');
+        return;
+      }
       const boxId = btn.dataset.presetId;
       const presetType = btn.dataset.presetType;
       let preset = PRESET_BOXES.find(x => x.id === boxId);
@@ -1833,117 +2464,320 @@ function renderStory() {
 function renderTracking() {
   const view = document.getElementById('app-view');
 
+  if (state.trackingActiveTab === undefined) {
+    state.trackingActiveTab = 'all';
+  }
+  if (state.expandedOrderId === undefined) {
+    state.expandedOrderId = null;
+  }
+
+  const statusLabels = {
+    confirmed: 'Chờ xác nhận',
+    processing: 'Đang đóng gói',
+    shipping: 'Đang vận chuyển',
+    delivered: 'Đã giao',
+    cancelled: 'Đã hủy'
+  };
+
+  // Shopee status tabs HTML
+  let tabsHtml = `
+    <div class="shopee-tabs" style="display: flex; border-bottom: 2px solid #f0f0f0; margin-bottom: 1.5rem; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; gap: 0.5rem; scrollbar-width: none;">
+      ${[
+        { key: 'all', label: 'Tất cả' },
+        { key: 'confirmed', label: 'Chờ xác nhận' },
+        { key: 'processing', label: 'Đang đóng gói' },
+        { key: 'shipping', label: 'Đang vận chuyển' },
+        { key: 'delivered', label: 'Đã giao' },
+        { key: 'cancelled', label: 'Đã hủy' }
+      ].map(tab => {
+        const isActive = state.trackingActiveTab === tab.key;
+        return `
+          <button class="shopee-tab-btn" data-status="${tab.key}" style="flex: 1; min-width: 90px; text-align: center; padding: 0.8rem 0.5rem; border: none; background: none; font-size: 0.9rem; font-weight: ${isActive ? '700' : '500'}; color: ${isActive ? 'var(--color-accent)' : 'var(--color-text-light)'}; border-bottom: 3px solid ${isActive ? 'var(--color-accent)' : 'transparent'}; cursor: pointer; transition: all 0.2s;">
+            ${tab.label}
+          </button>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  // Get orders list to display
+  let filteredOrders = state.orders;
+  if (state.trackingActiveTab !== 'all') {
+    filteredOrders = state.orders.filter(o => o.status === state.trackingActiveTab);
+  }
+
+  let ordersListHtml = '';
+  if (filteredOrders.length === 0) {
+    ordersListHtml = `
+      <div class="text-center" style="padding: 3rem 1rem; color: var(--color-text-light);">
+        <i class="fa-solid fa-folder-open" style="font-size: 2.5rem; margin-bottom: 1rem; color: #ccc;"></i>
+        <p>Không có đơn hàng nào trong trạng thái này.</p>
+      </div>
+    `;
+  } else {
+    filteredOrders.forEach(order => {
+      // Determine vertical timeline steps
+      let timelineStepsHtml = '';
+      if (order.status === 'cancelled') {
+        timelineStepsHtml = `
+          <div class="vertical-timeline" style="margin-top: 1rem; border-left: 2px solid var(--color-danger); padding-left: 1.5rem; position: relative;">
+            <div class="timeline-step completed" style="position: relative; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: flex-start;">
+              <div class="timeline-node" style="width: 32px; height: 32px; border-radius: 50%; background: var(--color-danger); border: 2px solid var(--color-danger); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; z-index: 1;">
+                <i class="fa-solid fa-xmark"></i>
+              </div>
+              <div class="timeline-details" style="flex: 1;">
+                <span class="timeline-time" style="font-size: 0.75rem; color: var(--color-text-light); display: block; margin-bottom: 0.15rem;">${order.tracking[order.tracking.length - 1]?.time || order.date}</span>
+                <span class="timeline-desc" style="font-weight: 600; color: var(--color-danger); display: block; font-size: 0.9rem;">Đơn hàng đã bị hủy</span>
+                <span style="font-size: 0.75rem; color: var(--color-text-light); display: block; margin-top: 0.2rem;">Yêu cầu hủy được ghi nhận thành công.</span>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        const stages = [
+          { key: 'confirmed', label: 'Thiết kế hoàn tất & Xác nhận đơn', icon: '<i class="fa-solid fa-check"></i>' },
+          { key: 'processing', label: 'Đang đóng gói thủ công (Giấy tổ ong, nơ đay)', icon: '<i class="fa-solid fa-box-open"></i>' },
+          { key: 'shipping_handover', label: 'Đã giao cho vận chuyển carbon thấp', icon: '<i class="fa-solid fa-truck-ramp-box"></i>' },
+          { key: 'shipping', label: 'Đang trên đường vận chuyển', icon: '<i class="fa-solid fa-truck-fast"></i>' },
+          { key: 'delivered', label: 'Đã giao hàng thành công', icon: '<i class="fa-solid fa-house-chimney-user"></i>' }
+        ];
+
+        let activeIndex = 0;
+        if (order.status === 'confirmed') activeIndex = 0;
+        else if (order.status === 'processing') activeIndex = 1;
+        else if (order.status === 'shipping') activeIndex = 3;
+        else if (order.status === 'delivered') activeIndex = 4;
+
+        timelineStepsHtml = `<div class="vertical-timeline" style="margin-top: 1rem; border-left: 2px solid var(--color-border-light); padding-left: 1.5rem; position: relative;">`;
+
+        stages.forEach((stage, idx) => {
+          const isCompleted = idx < activeIndex || order.status === 'delivered';
+          const isActive = idx === activeIndex && order.status !== 'delivered';
+          
+          let timeText = '';
+          if (isCompleted || isActive) {
+            const log = order.tracking[idx] || order.tracking[order.tracking.length - 1];
+            timeText = log ? log.time : '';
+          }
+
+          timelineStepsHtml += `
+            <div class="timeline-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}" style="position: relative; margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: flex-start;">
+              <div class="timeline-node" style="width: 32px; height: 32px; border-radius: 50%; background: ${isCompleted ? 'var(--color-accent)' : isActive ? '#fff' : '#f0f0f0'}; border: 2px solid ${isActive ? 'var(--color-accent)' : isCompleted ? 'var(--color-accent)' : '#ccc'}; color: ${isCompleted ? '#fff' : isActive ? 'var(--color-accent)' : '#999'}; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; flex-shrink: 0; z-index: 1;">
+                ${stage.icon}
+              </div>
+              <div class="timeline-details" style="flex: 1;">
+                ${timeText ? `<span class="timeline-time" style="font-size: 0.75rem; color: var(--color-text-light); display: block; margin-bottom: 0.15rem;">${timeText}</span>` : ''}
+                <span class="timeline-desc" style="font-weight: ${isActive ? '600' : 'normal'}; color: ${isActive ? 'var(--color-accent)' : 'var(--color-text)'}; display: block; font-size: 0.9rem;">${stage.label}</span>
+                ${isActive ? `<span style="font-size: 0.75rem; color: var(--color-accent); font-weight: 600; display: block; margin-top: 0.2rem;"><i class="fa-solid fa-spinner fa-spin"></i> Trạng thái hiện tại</span>` : ''}
+              </div>
+            </div>
+          `;
+        });
+
+        timelineStepsHtml += `</div>`;
+      }
+
+      ordersListHtml += `
+        <div class="shopee-order-card" style="background: white; border-radius: 12px; border: 1px solid var(--color-border-light); margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.02); overflow: hidden; transition: all 0.3s ease;">
+          <div class="shopee-order-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #f6f6f6; background-color: #faf9f6;">
+            <div style="display: flex; align-items: center; gap: 0.8rem;">
+              <span style="font-weight: 700; color: var(--color-text); font-size: 1.05rem;">${order.id}</span>
+              <span style="font-size: 0.8rem; color: var(--color-text-light);">${order.date}</span>
+            </div>
+            <span class="status-badge ${order.status}">${statusLabels[order.status]}</span>
+          </div>
+          
+          <div class="shopee-order-body" style="padding: 1.2rem 1.5rem;">
+            ${order.items.map(item => `
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; padding-bottom: 0.8rem; border-bottom: 1px dashed #f0f0f0;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                  <div style="width: 48px; height: 48px; background-color: #f7f5f0; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; flex-shrink:0;">
+                    <i class="fa-solid fa-gift" style="color: var(--color-accent); font-size: 1.2rem;"></i>
+                  </div>
+                  <div>
+                    <h4 style="font-size: 0.9rem; margin: 0; color: var(--color-text); font-weight:600;">${item.name}</h4>
+                    <span style="font-size: 0.8rem; color: var(--color-text-light);">Số lượng: x${item.qty}</span>
+                  </div>
+                </div>
+                <span style="font-weight: 600; color: var(--color-text); font-size:0.9rem;">${formatCurrency(item.price)}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="shopee-order-footer" style="padding: 1rem 1.5rem; background-color: #faf9f6; border-top: 1px solid #f6f6f6; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+              <span style="font-size: 0.85rem; color: var(--color-text-light);">Tổng tiền: </span>
+              <span style="font-size: 1.15rem; font-weight: 700; color: var(--color-accent);">${formatCurrency(order.total)}</span>
+            </div>
+            
+            <div style="display: flex; gap: 0.5rem;">
+              <button class="btn btn-secondary btn-sm toggle-timeline-btn" data-order-id="${order.id}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                <i class="fa-solid fa-route"></i> ${state.expandedOrderId === order.id ? 'Thu gọn' : 'Xem hành trình'}
+              </button>
+              ${order.status === 'shipping' ? `
+                <button class="btn btn-primary btn-sm confirm-received-btn" data-order-id="${order.id}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 6px; cursor: pointer; background-color: var(--color-accent); border: none; color: white; font-weight:600;">
+                  Đã nhận hàng
+                </button>
+              ` : ''}
+              ${order.status === 'confirmed' || order.status === 'processing' ? `
+                <button class="btn btn-danger btn-sm cancel-order-btn" data-order-id="${order.id}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 6px; cursor: pointer; background: #e74c3c; border: none; color: white;">
+                  Hủy đơn
+                </button>
+              ` : ''}
+              ${order.status === 'delivered' ? `
+                <button class="btn btn-secondary btn-sm buy-again-btn" data-order-id="${order.id}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 0.3rem;">
+                  <i class="fa-solid fa-rotate-left"></i> Mua lại
+                </button>
+              ` : ''}
+            </div>
+          </div>
+          
+          <!-- Collapsible timeline -->
+          <div class="order-timeline-collapse" id="timeline-${order.id}" style="display: ${state.expandedOrderId === order.id ? 'block' : 'none'}; padding: 1.5rem; background: #fff; border-top: 1px solid #f0f0f0;">
+            <h4 style="font-size:0.95rem; margin-bottom:1rem; color:var(--color-text); border-bottom:1px solid #f0f0f0; padding-bottom:0.5rem;"><i class="fa-solid fa-location-dot" style="color:var(--color-accent);"></i> Lịch sử hành trình đơn hàng</h4>
+            ${timelineStepsHtml}
+          </div>
+        </div>
+      `;
+    });
+  }
+
   let html = `
     <div class="section-title-container">
       <h2>Theo dõi đơn hàng</h2>
-      <p class="section-subtitle">Minh bạch hành trình giao quà của bạn với timeline chi tiết</p>
+      <p class="section-subtitle">Giao diện theo dõi đơn hàng tiện lợi chuẩn Shopee</p>
     </div>
     
-    <div class="tracking-search-box">
-      <h3>Tra cứu bằng Mã vận đơn / Mã đơn hàng</h3>
-      <p style="font-size:0.85rem; color:var(--color-text-light); margin-top:0.25rem;">(Thử nhập mã: <strong>EK-1001</strong> hoặc <strong>EK-1002</strong> để xem mẫu)</p>
-      <div class="tracking-input-row">
-        <input type="text" id="tracking-id-input" placeholder="Nhập mã đơn hàng (Ví dụ: EK-1001)...">
-        <button class="btn btn-primary" id="tracking-search-btn"><i class="fa-solid fa-magnifying-glass"></i> Tra cứu</button>
+    <div style="max-width: 800px; margin: 0 auto;">
+      <!-- Tab navigation -->
+      ${tabsHtml}
+      
+      <!-- List of orders -->
+      <div id="shopee-orders-container">
+        ${ordersListHtml}
       </div>
-    </div>
-    
-    <div class="tracking-timeline-container" id="tracking-results-container" style="display:none;">
-      <!-- Filled dynamically -->
     </div>
   `;
 
   view.innerHTML = html;
 
-  const btn = document.getElementById('tracking-search-btn');
-  const input = document.getElementById('tracking-id-input');
-  if (btn && input) {
-    const handleSearch = () => {
-      const orderId = input.value.trim().toUpperCase();
-      if (!orderId) {
-        showToast('Vui lòng nhập mã đơn hàng!');
-        return;
-      }
-      
-      const order = state.orders.find(x => x.id === orderId);
-      const resultsContainer = document.getElementById('tracking-results-container');
-      
-      if (!order) {
-        resultsContainer.style.display = 'block';
-        resultsContainer.innerHTML = `
-          <div class="text-center" style="color:var(--color-danger); padding:2rem 0;">
-            <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; margin-bottom:1rem;"></i>
-            <p>Không tìm thấy mã đơn hàng <strong>${orderId}</strong>. Vui lòng kiểm tra lại!</p>
-          </div>
-        `;
-        return;
-      }
-
-      // Render vertical timeline
-      resultsContainer.style.display = 'block';
-      
-      let trackingHtml = `
-        <div class="tracking-timeline-header">
-          <div>
-            <h3>Đơn hàng: ${order.id}</h3>
-            <span class="timeline-time">Ngày đặt: ${order.date}</span>
-          </div>
-          <span class="status-badge ${order.status}">${order.statusText}</span>
-        </div>
-        
-        <div class="vertical-timeline">
-      `;
-
-      // Stages: Thiết kế hoàn tất -> Đang đóng gói -> Đã giao cho vận chuyển -> Đang vận chuyển -> Đã giao
-      const stages = [
-        { key: 'confirmed', label: 'Thiết kế hoàn tất & Xác nhận đơn', icon: '<i class="fa-solid fa-check"></i>' },
-        { key: 'processing', label: 'Đang đóng gói thủ công (Giấy tổ ong, nơ đay)', icon: '<i class="fa-solid fa-box-open"></i>' },
-        { key: 'shipping_handover', label: 'Đã giao cho vận chuyển carbon thấp', icon: '<i class="fa-solid fa-truck-ramp-box"></i>' },
-        { key: 'shipping', label: 'Đang trên đường vận chuyển', icon: '<i class="fa-solid fa-truck-fast"></i>' },
-        { key: 'delivered', label: 'Đã giao hàng thành công', icon: '<i class="fa-solid fa-house-chimney-user"></i>' }
-      ];
-
-      // Determine how many stages are completed
-      let activeIndex = 0;
-      if (order.status === 'confirmed') activeIndex = 0;
-      else if (order.status === 'processing') activeIndex = 1;
-      else if (order.status === 'shipping') activeIndex = 3;
-      else if (order.status === 'delivered') activeIndex = 4;
-
-      stages.forEach((stage, idx) => {
-        const isCompleted = idx < activeIndex || order.status === 'delivered';
-        const isActive = idx === activeIndex && order.status !== 'delivered';
-        
-        let timeText = '';
-        if (isCompleted || isActive) {
-          // Bind mock timestamps from tracking logs if available
-          const log = order.tracking[idx] || order.tracking[order.tracking.length - 1];
-          timeText = log ? log.time : '';
-        }
-
-        trackingHtml += `
-          <div class="timeline-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''}">
-            <div class="timeline-node">${stage.icon}</div>
-            <div class="timeline-details">
-              ${timeText ? `<span class="timeline-time">${timeText}</span>` : ''}
-              <span class="timeline-desc">${stage.label}</span>
-              ${isActive ? `<span style="font-size:0.8rem; color:var(--color-accent); font-weight:600;"><i class="fa-solid fa-spinner fa-spin"></i> Trạng thái hiện tại</span>` : ''}
-            </div>
-          </div>
-        `;
-      });
-
-      trackingHtml += `
-        </div>
-      `;
-      resultsContainer.innerHTML = trackingHtml;
-    };
-
-    btn.addEventListener('click', handleSearch);
-    input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') handleSearch();
+  // Bind Tab clicks
+  document.querySelectorAll('.shopee-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.trackingActiveTab = btn.dataset.status;
+      renderTracking();
     });
-  }
+  });
+
+  // Bind "Xem hành trình" toggle
+  document.querySelectorAll('.toggle-timeline-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const orderId = btn.dataset.orderId;
+      if (state.expandedOrderId === orderId) {
+        state.expandedOrderId = null;
+      } else {
+        state.expandedOrderId = orderId;
+      }
+      renderTracking();
+    });
+  });
+
+  // Bind "Đã nhận hàng"
+  document.querySelectorAll('.confirm-received-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const orderId = btn.dataset.orderId;
+      const order = state.orders.find(o => o.id === orderId);
+      if (order) {
+        order.status = 'delivered';
+        order.statusText = 'Đã giao hàng thành công';
+        order.tracking.push({
+          time: new Date().toISOString().replace('T', ' ').substring(0, 16),
+          desc: 'Khách hàng xác nhận đã nhận được hàng'
+        });
+        saveStateToStorage();
+        showToast(`Đã xác nhận nhận hàng cho đơn ${orderId}!`);
+        renderTracking();
+      }
+    });
+  });
+
+  // Bind "Hủy đơn"
+  document.querySelectorAll('.cancel-order-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const orderId = btn.dataset.orderId;
+      if (confirm(`Bạn có chắc chắn muốn hủy đơn hàng ${orderId}?`)) {
+        const order = state.orders.find(o => o.id === orderId);
+        if (order) {
+          order.status = 'cancelled';
+          order.statusText = 'Đã hủy đơn hàng';
+          order.tracking.push({
+            time: new Date().toISOString().replace('T', ' ').substring(0, 16),
+            desc: 'Khách hàng yêu cầu hủy đơn hàng'
+          });
+          saveStateToStorage();
+          showToast(`Đã hủy đơn hàng ${orderId} thành công.`);
+          renderTracking();
+        }
+      }
+    });
+  });
+
+  // Bind "Mua lại"
+  document.querySelectorAll('.buy-again-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const orderId = btn.dataset.orderId;
+      const order = state.orders.find(o => o.id === orderId);
+      if (order) {
+        order.items.forEach(item => {
+          const preset = PRESET_BOXES.find(pb => pb.name === item.name);
+          let newCartItem;
+          if (preset) {
+            newCartItem = {
+              id: 'preset-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+              type: 'preset',
+              name: preset.name,
+              image: preset.image,
+              qty: item.qty,
+              price: preset.price,
+              items: [...preset.items],
+              metrics: { ...preset.metrics }
+            };
+          } else {
+            newCartItem = {
+              id: 'custom-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+              type: 'custom',
+              name: item.name,
+              qty: item.qty,
+              price: item.price,
+              box: 'box-kraft',
+              size: 'size-medium',
+              ribbon: 'ribbon-jute',
+              boxOptionType: 'color',
+              boxColor: '#f3ede2',
+              ribbonOptionType: 'color',
+              ribbonColor: '#bda58d',
+              items: [],
+              card: { text: '', font: 'var(--font-body)', color: '#3E3E3E' },
+              photo: null,
+              metrics: {
+                recycledContent: 85,
+                recyclabilityRate: 100,
+                reusablePackaging: 90,
+                renewableMaterial: 95,
+                virginPlasticReduction: 150,
+                carbonFootprintAvoided: 1.5
+              }
+            };
+          }
+          state.cart.push(newCartItem);
+        });
+        saveStateToStorage();
+        updateCartCount();
+        showToast(`Đã thêm lại các sản phẩm vào giỏ hàng!`);
+        openCartDrawer();
+      }
+    });
+  });
 }
 
 // 7. My Account Page View
@@ -2284,6 +3118,10 @@ function renderAccount() {
 // SMART CART DRAWER MANAGEMENT
 // ==========================================================================
 function openCartDrawer() {
+  if (state.user && state.user.role === 'admin') {
+    showToast('Tài khoản quản trị viên không thể mua sắm!', 'warning');
+    return;
+  }
   renderCartItems();
   document.getElementById('cart-drawer').classList.add('active');
 }
@@ -2325,11 +3163,58 @@ function renderCartItems() {
       
       const itemNames = item.items.map(id => PRODUCTS.find(x => x.id === id)?.name).join(', ');
 
+      // Compute custom box thumbnail style in cart drawer
+      let itemBoxBgStyle = '';
+      if (item.boxOptionType === 'color') {
+        itemBoxBgStyle = `background-color: ${item.boxColor}; background-image: none;`;
+      } else if (item.boxOptionType === 'pattern') {
+        const pat = BOX_PATTERNS[item.boxPattern];
+        if (pat) {
+          itemBoxBgStyle = `background-image: ${pat.image}; background-size: ${pat.size}; background-position: ${pat.position}; background-color: ${pat.color};`;
+        } else {
+          itemBoxBgStyle = `background-color: #f3ede2;`;
+        }
+      } else if (item.boxOptionType === 'custom' && item.boxCustomImage) {
+        itemBoxBgStyle = `background-image: url(${item.boxCustomImage}); background-size: cover; background-position: center;`;
+      } else {
+        itemBoxBgStyle = `background-color: ${box.id === 'box-bamboo' ? '#e3dac9' : '#f3ede2'};`;
+      }
+
+      let itemRibColor = '';
+      if (item.ribbonOptionType === 'color') {
+        itemRibColor = item.ribbonColor;
+      } else if (item.ribbonOptionType === 'pattern') {
+        const pat = RIBBON_PATTERNS[item.ribbonPattern];
+        itemRibColor = pat ? pat.color : '#bda58d';
+      } else if (item.ribbonOptionType === 'custom' && item.ribbonCustomImage) {
+        itemRibColor = '#bda58d'; // fallback
+      } else {
+        itemRibColor = ribbon.color;
+      }
+
+      let boxCustomDesc = 'Tự thiết kế';
+      if (item.boxOptionType === 'color') {
+        boxCustomDesc = `Màu (${item.boxColor})`;
+      } else if (item.boxOptionType === 'pattern') {
+        boxCustomDesc = `Họa tiết (${item.boxPattern})`;
+      } else if (item.boxOptionType === 'custom') {
+        boxCustomDesc = 'Ảnh tự tải';
+      }
+
+      let ribCustomDesc = 'Tự thiết kế';
+      if (item.ribbonOptionType === 'color') {
+        ribCustomDesc = `Màu (${item.ribbonColor})`;
+      } else if (item.ribbonOptionType === 'pattern') {
+        ribCustomDesc = `Họa tiết (${item.ribbonPattern})`;
+      } else if (item.ribbonOptionType === 'custom') {
+        ribCustomDesc = 'Ảnh tự tải';
+      }
+
       html += `
         <div class="cart-item">
           <div class="cart-item-header">
-            <div class="cart-item-preview-img" style="background-color:${box.id === 'box-bamboo' ? '#e3dac9' : '#f3ede2'}; border: 2px solid ${ribbon.color}; position:relative; overflow:hidden;">
-              ${item.photo ? `<img src="${item.photo}" style="width:100%; height:100%; object-fit:cover;">` : `<i class="fa-solid fa-gift" style="font-size:1.5rem; color:${ribbon.color}; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);"></i>`}
+            <div class="cart-item-preview-img" style="${itemBoxBgStyle} border: 2px solid ${itemRibColor}; position:relative; overflow:hidden; border-radius: 4px; width: 60px; height: 60px; flex-shrink: 0;">
+              ${item.photo ? `<img src="${item.photo}" style="width:100%; height:100%; object-fit:cover;">` : `<i class="fa-solid fa-gift" style="font-size:1.5rem; color:${itemRibColor}; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);"></i>`}
             </div>
             <div class="cart-item-title-info">
               <h4>Hộp quà Custom (${size.name})</h4>
@@ -2338,9 +3223,9 @@ function renderCartItems() {
           </div>
           <div class="cart-item-selections">
             <ul>
-              <li><strong>Hộp:</strong> ${box.name}</li>
+              <li><strong>Hộp:</strong> ${box.name} (${boxCustomDesc})</li>
               <li><strong>Quà:</strong> ${itemNames || 'Chưa chọn quà'}</li>
-              <li><strong>Ruy băng:</strong> ${ribbon.name}</li>
+              <li><strong>Ruy băng:</strong> ${ribbon.name} (${ribCustomDesc})</li>
               ${item.card.text ? `<li><strong>Thiệp:</strong> "${item.card.text.substring(0, 15)}..."</li>` : ''}
             </ul>
           </div>
@@ -2419,6 +3304,14 @@ window.editCartItem = function(id) {
       box: item.box,
       size: item.size,
       ribbon: item.ribbon,
+      boxOptionType: item.boxOptionType || 'color',
+      boxColor: item.boxColor || '#f3ede2',
+      boxPattern: item.boxPattern || 'stripe',
+      boxCustomImage: item.boxCustomImage || null,
+      ribbonOptionType: item.ribbonOptionType || 'color',
+      ribbonColor: item.ribbonColor || '#bda58d',
+      ribbonPattern: item.ribbonPattern || 'polka',
+      ribbonCustomImage: item.ribbonCustomImage || null,
       items: [...item.items],
       cardText: item.card.text,
       cardFont: item.card.font,
@@ -2438,43 +3331,55 @@ window.editCartItem = function(id) {
   }
 };
 
-// Checkout simulation
-function simulateCheckout() {
+// Go to Checkout page (replaces old simulateCheckout alert)
+function goToCheckout() {
   if (state.cart.length === 0) return;
   
   if (!state.user) {
-    showToast("Vui lòng hoàn tất khảo sát/đăng ký tài khoản để thanh toán!");
+    showToast("Vui lòng đăng nhập để thanh toán!");
     openOnboardingSurvey();
     closeCartDrawer();
     return;
   }
 
-  const orderId = 'EK-' + (1000 + state.orders.length + 1);
+  // Reset checkout state
+  state.checkout.step = 1;
+  state.checkout.couponCode = '';
+  state.checkout.couponDiscount = 0;
+  state.checkout.deliveryMethod = 'standard';
+  state.checkout.shipFee = 35000;
+  state.checkout.paymentMethod = 'cod';
+
+  closeCartDrawer();
+  navigateTo('checkout');
+}
+
+// Place order (called from checkout review step)
+function placeOrder() {
   const total = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const orderId = 'EK-' + (1000 + state.orders.length + 1);
   
-  // Calculate aggregated metrics
-  let recycledTotal = 0;
-  let plasticSaved = 0;
-  let co2Saved = 0;
-  
+  let recycledTotal = 0, plasticSaved = 0, co2Saved = 0;
   state.cart.forEach(item => {
     recycledTotal += item.metrics.recycledContent * item.qty;
     plasticSaved += item.metrics.virginPlasticReduction * item.qty;
     co2Saved += item.metrics.carbonFootprintAvoided * item.qty;
   });
-  
   const count = state.cart.reduce((sum, item) => sum + item.qty, 0);
+  const grandTotal = total + state.checkout.shipFee - state.checkout.couponDiscount;
 
   const newOrder = {
     id: orderId,
     date: new Date().toISOString().replace('T', ' ').substring(0, 16),
-    total: total,
+    total: grandTotal,
     status: 'confirmed',
     statusText: 'Đã xác nhận thanh toán',
     items: state.cart.map(x => ({ name: x.type === 'custom' ? 'Hộp quà tùy biến' : x.name, qty: x.qty, price: x.price })),
     tracking: [
       { time: new Date().toISOString().replace('T', ' ').substring(0, 16), desc: "Đặt hàng thành công và thanh toán hoàn tất" }
     ],
+    shippingInfo: { ...state.checkout.shippingInfo },
+    paymentMethod: state.checkout.paymentMethod,
     metrics: {
       recycledContent: Math.round(recycledTotal / count),
       recyclabilityRate: 100,
@@ -2485,15 +3390,13 @@ function simulateCheckout() {
     }
   };
 
-  state.orders.unshift(newOrder); // Add to beginning of orders
-  state.cart = []; // clear cart
-  
+  state.orders.unshift(newOrder);
+  state.cart = [];
   saveStateToStorage();
   updateCartCount();
-  closeCartDrawer();
-  
-  alert(`Chúc mừng! Bạn đã đặt hàng thành công. Mã đơn hàng của bạn là: ${orderId}. Bạn có thể theo dõi hành trình giao quà của mình.`);
-  navigateTo('account');
+
+  // Show success screen
+  renderCheckoutSuccess(orderId, co2Saved);
 }
 
 // ==========================================================================
@@ -2515,14 +3418,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Bind static header events
   document.getElementById('nav-logo').addEventListener('click', () => navigateTo('home'));
-  
-  document.querySelectorAll('.nav-links a, .mobile-nav-links a').forEach(link => {
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      const route = link.dataset.route;
-      navigateTo(route);
-    });
-  });
 
   // Mobile menu toggle
   const mobileToggle = document.getElementById('mobile-toggle');
@@ -2562,9 +3457,12 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Vui lòng nhập email và mật khẩu!');
         return;
       }
+      // Admin account detection
+      const isAdmin = email === 'admin@ecoknot.vn' && password === 'admin123';
       state.user = {
         email,
         password,
+        role: isAdmin ? 'admin' : 'user',
         preferenceProfile: {
           recipient: ['friends'],
           interests: ['eco'],
@@ -2579,8 +3477,13 @@ document.addEventListener('DOMContentLoaded', () => {
       loginModal.classList.remove('active');
       document.getElementById('login-email').value = '';
       document.getElementById('login-password').value = '';
-      showToast('Đăng nhập thành công!');
-      renderHome();
+      if (isAdmin) {
+        showToast('Đăng nhập Admin thành công! Chào mừng quản trị viên.');
+        navigateTo('admin');
+      } else {
+        showToast('Đăng nhập thành công!');
+        renderHome();
+      }
     });
   }
   if (loginToOnboarding) {
@@ -2622,6 +3525,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Dropdown: Admin Dashboard link
+  const dropdownAdminLink = document.getElementById('dropdown-admin-link');
+  if (dropdownAdminLink) {
+    dropdownAdminLink.addEventListener('click', () => {
+      userDropdown.classList.remove('show');
+      navigateTo('admin');
+    });
+  }
+
   // Dropdown: Logout
   const dropdownLogoutBtn = document.getElementById('dropdown-logout-btn');
   if (dropdownLogoutBtn) {
@@ -2631,7 +3543,7 @@ document.addEventListener('DOMContentLoaded', () => {
       updateAuthUI();
       userDropdown.classList.remove('show');
       showToast('Đã đăng xuất!');
-      renderHome();
+      navigateTo('home');
     });
   }
 
@@ -2679,13 +3591,97 @@ document.addEventListener('DOMContentLoaded', () => {
   // Checkout button
   const checkoutBtn = document.getElementById('checkout-btn');
   if (checkoutBtn) {
-    checkoutBtn.addEventListener('click', simulateCheckout);
+    checkoutBtn.addEventListener('click', goToCheckout);
   }
 
   // DPP modal close
   const closeDpp = document.getElementById('close-dpp-btn');
   const dppOverlay = document.getElementById('dpp-modal');
   if (closeDpp) closeDpp.addEventListener('click', () => dppOverlay.classList.remove('active'));
+
+  // Cert modal close
+  const closeCert = document.getElementById('close-cert-btn');
+  const certOverlay = document.getElementById('cert-modal');
+  if (closeCert) closeCert.addEventListener('click', () => certOverlay.classList.remove('active'));
+  if (certOverlay) certOverlay.addEventListener('click', (e) => {
+    if (e.target === certOverlay) certOverlay.classList.remove('active');
+  });
+
+  // Add Product Modal Events
+  const addProdModal = document.getElementById('add-product-modal');
+  const closeAddProdBtn = document.getElementById('close-add-product-btn');
+  const cancelAddProdBtn = document.getElementById('cancel-add-product-btn');
+  const addProdForm = document.getElementById('add-product-form');
+
+  const closeAddProductModal = () => {
+    if (addProdModal) addProdModal.classList.remove('active');
+    if (addProdForm) addProdForm.reset();
+  };
+
+  if (closeAddProdBtn) closeAddProdBtn.addEventListener('click', closeAddProductModal);
+  if (cancelAddProdBtn) cancelAddProdBtn.addEventListener('click', closeAddProductModal);
+
+  if (addProdForm) {
+    addProdForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const name = document.getElementById('prod-name').value.trim();
+      const price = parseFloat(document.getElementById('prod-price').value) || 0;
+      const image = document.getElementById('prod-image').value.trim() || IMAGE_FALLBACK;
+      const description = document.getElementById('prod-desc').value.trim();
+      
+      // Get selected tags
+      const checkedTagInputs = document.querySelectorAll('input[name="prod-tags"]:checked');
+      const tags = Array.from(checkedTagInputs).map(input => input.value);
+      if (tags.length === 0) {
+        showToast('Vui lòng chọn ít nhất 1 tag phân loại!');
+        return;
+      }
+
+      // DPP metrics
+      const recycledContent = parseInt(document.getElementById('prod-recycled').value) || 85;
+      const recyclabilityRate = parseInt(document.getElementById('prod-recyclability').value) || 100;
+      const reusablePackaging = parseInt(document.getElementById('prod-reusable-pkg').value) || 90;
+      const renewableMaterial = parseInt(document.getElementById('prod-renewable').value) || 95;
+      const virginPlasticReduction = parseInt(document.getElementById('prod-plastic').value) || 80;
+      const carbonFootprintAvoided = parseFloat(document.getElementById('prod-co2').value) || 1.0;
+      const origin = document.getElementById('prod-origin').value.trim() || "Việt Nam";
+      const material = document.getElementById('prod-material').value.trim() || "Nguyên liệu hữu cơ tự nhiên";
+      const packaging = document.getElementById('prod-packaging').value.trim() || "Hộp giấy tái chế phân hủy sinh học";
+      
+      const certsInput = document.getElementById('prod-certs').value.trim();
+      const certifications = certsInput ? certsInput.split(',').map(s => s.trim()).filter(Boolean) : ["FSC Certified", "Cruelty-Free"];
+
+      const newProduct = {
+        id: `prod-${Date.now()}`,
+        name,
+        category: "item",
+        price,
+        image,
+        tags,
+        description,
+        dpp: {
+          recycledContent,
+          recyclabilityRate,
+          reusablePackaging,
+          renewableMaterial,
+          virginPlasticReduction,
+          carbonFootprintAvoided,
+          origin,
+          material,
+          packaging,
+          certifications
+        }
+      };
+
+      PRODUCTS.push(newProduct);
+      saveProductsToStorage();
+      
+      showToast('Đã thêm sản phẩm thành công!');
+      closeAddProductModal();
+      renderAdmin();
+    });
+  }
 
   // Global search input
   const searchInput = document.getElementById('global-search');
@@ -2706,3 +3702,459 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+// ==========================================================================
+// 8. CHECKOUT PAGE
+// ==========================================================================
+function renderCheckout() {
+  const view = document.getElementById('app-view');
+
+  if (!state.user) {
+    view.innerHTML = `<div class="text-center" style="padding:4rem 0;"><i class="fa-solid fa-lock" style="font-size:2rem;color:var(--color-border);margin-bottom:1rem;"></i><p>Vui lòng đăng nhập để thanh toán.</p><button class="btn btn-primary mt-2" onclick="document.getElementById('login-modal').classList.add('active')">Đăng nhập</button></div>`;
+    return;
+  }
+
+  const step = state.checkout.step;
+  const subtotal = state.cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const shipFee = state.checkout.shipFee;
+  const discount = state.checkout.couponDiscount;
+  const grandTotal = subtotal + shipFee - discount;
+  const totalCo2 = state.cart.reduce((s, i) => s + i.metrics.carbonFootprintAvoided * i.qty, 0);
+
+  const steps = ['Thông tin giao', 'Vận chuyển', 'Thanh toán', 'Xác nhận'];
+  let stepperHtml = `<div class="checkout-stepper">`;
+  steps.forEach((label, i) => {
+    const idx = i + 1;
+    const cls = idx < step ? 'completed' : (idx === step ? 'active' : '');
+    const icon = idx < step ? '<i class="fa-solid fa-check"></i>' : idx;
+    stepperHtml += `<div class="checkout-step-item ${cls}"><div class="checkout-step-num">${icon}</div><div class="checkout-step-label">${label}</div></div>`;
+  });
+  stepperHtml += `</div>`;
+
+  // Summary sidebar
+  let summaryHtml = `<div class="checkout-summary-card"><div class="checkout-summary-header"><i class="fa-solid fa-basket-shopping"></i> Đơn hàng của bạn</div><div class="checkout-summary-body">`;
+  state.cart.forEach(item => {
+    const name = item.type === 'custom' ? `Hộp quà Custom (${item.qty}x)` : item.name;
+    const img = item.type === 'preset' && item.image ? `<img src="${item.image}" onerror="this.style.display='none'">` : `<i class="fa-solid fa-gift"></i>`;
+    summaryHtml += `<div class="checkout-summary-item"><div class="checkout-item-icon">${img}</div><div class="checkout-item-info"><div class="checkout-item-name">${name}</div><div class="checkout-item-qty">x${item.qty}</div></div><div class="checkout-item-price">${formatCurrency(item.price * item.qty)}</div></div>`;
+  });
+  summaryHtml += `</div><div class="checkout-totals"><div class="checkout-total-row"><span>Tạm tính</span><span>${formatCurrency(subtotal)}</span></div><div class="checkout-total-row"><span>Phí vận chuyển</span><span>${formatCurrency(shipFee)}</span></div>${discount > 0 ? `<div class="checkout-total-row discount"><span>Mã giảm giá</span><span>-${formatCurrency(discount)}</span></div>` : ''}<div class="checkout-total-row grand-total"><span>Tổng thanh toán</span><span>${formatCurrency(grandTotal)}</span></div></div><div class="checkout-eco-card"><i class="fa-solid fa-leaf"></i><span>Đơn hàng này tránh phát thải <strong>${totalCo2.toFixed(1)} kg CO₂e</strong></span></div></div>`;
+
+  // Step content
+  let formHtml = '';
+
+  if (step === 1) {
+    const s = state.checkout.shippingInfo;
+    formHtml = `
+      <div class="checkout-form-panel">
+        <div class="checkout-section-title"><i class="fa-solid fa-location-dot"></i> Thông tin giao hàng</div>
+        <div class="form-row-2">
+          <div class="form-group"><label>Họ và tên *</label><input type="text" id="co-name" value="${s.name}" placeholder="Nguyễn Văn A"></div>
+          <div class="form-group"><label>Số điện thoại *</label><input type="tel" id="co-phone" value="${s.phone}" placeholder="09xxxxxxxx"></div>
+        </div>
+        <div class="form-group"><label>Email nhận xác nhận *</label><input type="email" id="co-email" value="${s.email || state.user.email}" placeholder="email@example.com"></div>
+        <div class="form-row-2">
+          <div class="form-group"><label>Tỉnh / Thành phố *</label>
+            <select id="co-province"><option value="">Chọn Tỉnh/TP...</option><option ${s.province==='HCM'?'selected':''} value="HCM">TP. Hồ Chí Minh</option><option ${s.province==='HN'?'selected':''} value="HN">Hà Nội</option><option ${s.province==='DN'?'selected':''} value="DN">Đà Nẵng</option><option ${s.province==='other'?'selected':''} value="other">Tỉnh khác</option></select>
+          </div>
+          <div class="form-group"><label>Quận / Huyện *</label><input type="text" id="co-district" value="${s.district}" placeholder="Quận 1, Huyện..."></div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group"><label>Phường / Xã</label><input type="text" id="co-ward" value="${s.ward}" placeholder="Phường Bến Nghé..."></div>
+          <div class="form-group"><label>Số nhà, tên đường *</label><input type="text" id="co-address" value="${s.address}" placeholder="123 Đường ABC..."></div>
+        </div>
+        <div class="form-group"><label>Ghi chú đơn hàng</label><textarea id="co-note" rows="2" placeholder="Yêu cầu đặc biệt về thời gian giao, hướng dẫn tìm nhà...">${s.note}</textarea></div>
+        <div class="checkout-nav-btns">
+          <button class="btn btn-outline" id="co-back-home"><i class="fa-solid fa-arrow-left"></i> Quay lại giỏ hàng</button>
+          <button class="btn btn-primary" id="co-next-1">Tiếp theo <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>`;
+  } else if (step === 2) {
+    const dm = state.checkout.deliveryMethod;
+    formHtml = `
+      <div class="checkout-form-panel">
+        <div class="checkout-section-title"><i class="fa-solid fa-truck-fast"></i> Phương thức vận chuyển</div>
+        <div class="option-list">
+          <label class="option-item ${dm==='standard'?'selected':''}" id="ship-standard">
+            <input type="radio" name="delivery" value="standard" ${dm==='standard'?'checked':''}><div class="payment-icon" style="background:#e8f5e9;color:#388e3c;"><i class="fa-solid fa-truck"></i></div>
+            <div class="option-item-content"><div class="option-item-title">Giao hàng tiêu chuẩn</div><div class="option-item-desc">3 – 5 ngày làm việc · Xanh carbon thấp</div></div>
+            <span class="option-item-price">35.000đ</span>
+          </label>
+          <label class="option-item ${dm==='express'?'selected':''}" id="ship-express">
+            <input type="radio" name="delivery" value="express" ${dm==='express'?'checked':''}><div class="payment-icon" style="background:#fff3e0;color:#f57c00;"><i class="fa-solid fa-truck-fast"></i></div>
+            <div class="option-item-content"><div class="option-item-title">Giao hàng nhanh</div><div class="option-item-desc">1 – 2 ngày làm việc · Đảm bảo an toàn hộp quà</div></div>
+            <span class="option-item-price">65.000đ</span>
+          </label>
+          <label class="option-item ${dm==='same_day'?'selected':''}" id="ship-same">
+            <input type="radio" name="delivery" value="same_day" ${dm==='same_day'?'checked':''}><div class="payment-icon" style="background:#fce4ec;color:#c62828;"><i class="fa-solid fa-bolt"></i></div>
+            <div class="option-item-content"><div class="option-item-title">Hỏa tốc nội thành (HN / HCM)</div><div class="option-item-desc">Giao trong ngày · Chỉ áp dụng nội thành</div></div>
+            <span class="option-item-price">95.000đ</span>
+          </label>
+        </div>
+        <div class="checkout-nav-btns">
+          <button class="btn btn-outline" id="co-back-2"><i class="fa-solid fa-arrow-left"></i> Quay lại</button>
+          <button class="btn btn-primary" id="co-next-2">Tiếp theo <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>`;
+  } else if (step === 3) {
+    const pm = state.checkout.paymentMethod;
+    formHtml = `
+      <div class="checkout-form-panel">
+        <div class="checkout-section-title"><i class="fa-solid fa-credit-card"></i> Phương thức thanh toán</div>
+        <div class="option-list">
+          <label class="option-item ${pm==='cod'?'selected':''}" id="pay-cod">
+            <input type="radio" name="payment" value="cod" ${pm==='cod'?'checked':''}><div class="payment-icon" style="background:#e8f5e9;color:#2e7d32;"><i class="fa-solid fa-money-bill-wave"></i></div>
+            <div class="option-item-content"><div class="option-item-title">COD – Thanh toán khi nhận hàng</div><div class="option-item-desc">Kiểm tra hàng rồi mới trả tiền</div></div>
+            <span class="option-item-price">Miễn phí</span>
+          </label>
+          <label class="option-item ${pm==='bank_transfer'?'selected':''}" id="pay-bank">
+            <input type="radio" name="payment" value="bank_transfer" ${pm==='bank_transfer'?'checked':''}><div class="payment-icon" style="background:#e3f2fd;color:#1565c0;"><i class="fa-solid fa-building-columns"></i></div>
+            <div class="option-item-content"><div class="option-item-title">Chuyển khoản ngân hàng</div><div class="option-item-desc">Quét mã QR – Xác nhận trong 15 phút</div></div>
+            <span class="option-item-price">Miễn phí</span>
+          </label>
+          <label class="option-item ${pm==='momo'?'selected':''}" id="pay-momo">
+            <input type="radio" name="payment" value="momo" ${pm==='momo'?'checked':''}><div class="payment-icon" style="background:#fce4ec;color:#ad1457;font-weight:900;font-size:0.8rem;">M</div>
+            <div class="option-item-content"><div class="option-item-title">Ví MoMo</div><div class="option-item-desc">Thanh toán qua ứng dụng MoMo</div></div>
+            <span class="option-item-price">Miễn phí</span>
+          </label>
+          <label class="option-item ${pm==='zalopay'?'selected':''}" id="pay-zalopay">
+            <input type="radio" name="payment" value="zalopay" ${pm==='zalopay'?'checked':''}><div class="payment-icon" style="background:#e3f2fd;color:#0056a0;font-weight:900;font-size:0.8rem;">Z</div>
+            <div class="option-item-content"><div class="option-item-title">ZaloPay</div><div class="option-item-desc">Thanh toán qua ứng dụng ZaloPay</div></div>
+            <span class="option-item-price">Miễn phí</span>
+          </label>
+        </div>
+        <div id="qr-container" class="qr-mock-container ${pm==='bank_transfer'?'show':''}">
+          <p style="font-size:0.85rem;font-weight:600;margin-bottom:0.75rem;">Quét mã QR để chuyển khoản</p>
+          <div class="qr-mock-grid" id="qr-grid"></div>
+          <p style="font-size:0.8rem;"><strong>MB Bank</strong> · 1234567890 · ECOKNOT GIFTING</p>
+          <p style="font-size:0.75rem;color:var(--color-text-light);margin-top:0.25rem;">Nội dung: <strong>${state.user.email} - ${formatCurrency(grandTotal)}</strong></p>
+        </div>
+        <div style="margin-top:1.25rem;">
+          <div class="checkout-section-title" style="font-size:0.95rem;"><i class="fa-solid fa-ticket"></i> Mã giảm giá</div>
+          <div class="coupon-row">
+            <input type="text" id="coupon-input" placeholder="ECOWELCOME10" value="${state.checkout.couponCode}">
+            <button class="btn btn-outline" id="apply-coupon-btn">Áp dụng</button>
+          </div>
+          ${discount > 0 ? `<p style="color:var(--color-accent);font-size:0.85rem;margin-top:0.5rem;font-weight:600;"><i class="fa-solid fa-circle-check"></i> Đã giảm ${formatCurrency(discount)}!</p>` : ''}
+        </div>
+        <div class="checkout-nav-btns">
+          <button class="btn btn-outline" id="co-back-3"><i class="fa-solid fa-arrow-left"></i> Quay lại</button>
+          <button class="btn btn-primary" id="co-next-3">Xem lại đơn hàng <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>`;
+  } else if (step === 4) {
+    const si = state.checkout.shippingInfo;
+    const dmLabel = {standard:'Tiêu chuẩn (3-5 ngày)', express:'Nhanh (1-2 ngày)', same_day:'Hỏa tốc (Trong ngày)'}[state.checkout.deliveryMethod];
+    const pmLabel = {cod:'COD – Nhận hàng trả tiền', bank_transfer:'Chuyển khoản QR', momo:'Ví MoMo', zalopay:'ZaloPay'}[state.checkout.paymentMethod];
+    formHtml = `
+      <div class="checkout-form-panel">
+        <div class="checkout-section-title"><i class="fa-solid fa-clipboard-check"></i> Xác nhận đơn hàng</div>
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+          <div style="background:var(--bg-primary);border-radius:8px;padding:1rem 1.25rem;">
+            <p style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--color-text-light);margin-bottom:0.5rem;">Địa chỉ giao hàng</p>
+            <p style="font-weight:600;">${si.name} · ${si.phone}</p>
+            <p style="font-size:0.875rem;color:var(--color-text-light);">${si.address}, ${si.ward ? si.ward + ', ' : ''}${si.district}, ${si.province}</p>
+          </div>
+          <div style="background:var(--bg-primary);border-radius:8px;padding:1rem 1.25rem;">
+            <p style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--color-text-light);margin-bottom:0.5rem;">Vận chuyển & Thanh toán</p>
+            <p style="font-size:0.875rem;"><i class="fa-solid fa-truck" style="color:var(--color-accent);margin-right:0.4rem;"></i>${dmLabel}</p>
+            <p style="font-size:0.875rem;margin-top:0.25rem;"><i class="fa-solid fa-credit-card" style="color:var(--color-accent);margin-right:0.4rem;"></i>${pmLabel}</p>
+          </div>
+        </div>
+        <div class="checkout-nav-btns">
+          <button class="btn btn-outline" id="co-back-4"><i class="fa-solid fa-arrow-left"></i> Chỉnh sửa</button>
+          <button class="btn btn-primary" id="co-place-order" style="background:linear-gradient(135deg,var(--color-accent),#7ba173);padding:0.9rem 2rem;"><i class="fa-solid fa-check-circle"></i> Đặt hàng ngay – ${formatCurrency(grandTotal)}</button>
+        </div>
+      </div>`;
+  }
+
+  view.innerHTML = `
+    <div class="section-title-container">
+      <h2>Thanh toán đơn hàng</h2>
+      <p class="section-subtitle">Hoàn tất đơn hàng của bạn một cách an toàn và nhanh chóng</p>
+    </div>
+    ${stepperHtml}
+    <div class="checkout-layout">
+      <div id="checkout-form-area">${formHtml}</div>
+      ${summaryHtml}
+    </div>`;
+
+  // Bind events
+  const q = (id) => document.getElementById(id);
+
+  if (step === 1) {
+    q('co-back-home')?.addEventListener('click', () => { openCartDrawer(); navigateTo('home'); });
+    q('co-next-1')?.addEventListener('click', () => {
+      const name = q('co-name').value.trim();
+      const phone = q('co-phone').value.trim();
+      const province = q('co-province').value;
+      const district = q('co-district').value.trim();
+      const address = q('co-address').value.trim();
+      if (!name || !phone || !province || !district || !address) { showToast('Vui lòng điền đầy đủ thông tin bắt buộc (*)!'); return; }
+      state.checkout.shippingInfo = { name, phone, email: q('co-email').value.trim(), province, district, ward: q('co-ward').value.trim(), address, note: q('co-note').value.trim() };
+      state.checkout.step = 2;
+      renderCheckout();
+    });
+  } else if (step === 2) {
+    q('co-back-2')?.addEventListener('click', () => { state.checkout.step = 1; renderCheckout(); });
+    document.querySelectorAll('input[name="delivery"]').forEach(r => {
+      r.addEventListener('change', () => {
+        document.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+        r.closest('.option-item').classList.add('selected');
+      });
+    });
+    q('co-next-2')?.addEventListener('click', () => {
+      const sel = document.querySelector('input[name="delivery"]:checked')?.value || 'standard';
+      state.checkout.deliveryMethod = sel;
+      state.checkout.shipFee = sel === 'standard' ? 35000 : sel === 'express' ? 65000 : 95000;
+      state.checkout.step = 3;
+      renderCheckout();
+    });
+  } else if (step === 3) {
+    // QR grid generation
+    const qrGrid = q('qr-grid');
+    if (qrGrid) {
+      for (let i = 0; i < 49; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'qr-mock-cell';
+        cell.style.background = Math.random() > 0.45 ? '#222' : '#fff';
+        qrGrid.appendChild(cell);
+      }
+    }
+    document.querySelectorAll('input[name="payment"]').forEach(r => {
+      r.addEventListener('change', () => {
+        document.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+        r.closest('.option-item').classList.add('selected');
+        const qrC = q('qr-container');
+        if (qrC) qrC.classList.toggle('show', r.value === 'bank_transfer');
+      });
+    });
+    q('apply-coupon-btn')?.addEventListener('click', () => {
+      const code = q('coupon-input').value.trim().toUpperCase();
+      if (code === 'ECOWELCOME10') {
+        const disc = Math.round(subtotal * 0.1);
+        state.checkout.couponCode = code;
+        state.checkout.couponDiscount = disc;
+        showToast(`Áp dụng mã thành công! Giảm ${formatCurrency(disc)}`);
+        renderCheckout();
+      } else if (code) {
+        showToast('Mã giảm giá không hợp lệ hoặc đã hết hạn!');
+      }
+    });
+    q('co-back-3')?.addEventListener('click', () => { state.checkout.step = 2; renderCheckout(); });
+    q('co-next-3')?.addEventListener('click', () => {
+      const pm = document.querySelector('input[name="payment"]:checked')?.value || 'cod';
+      state.checkout.paymentMethod = pm;
+      state.checkout.step = 4;
+      renderCheckout();
+    });
+  } else if (step === 4) {
+    q('co-back-4')?.addEventListener('click', () => { state.checkout.step = 3; renderCheckout(); });
+    q('co-place-order')?.addEventListener('click', () => {
+      q('co-place-order').disabled = true;
+      q('co-place-order').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang xử lý...';
+      setTimeout(() => placeOrder(), 1200);
+    });
+  }
+}
+
+function renderCheckoutSuccess(orderId, co2Saved) {
+  const view = document.getElementById('app-view');
+  view.innerHTML = `
+    <div class="checkout-success-page">
+      <div class="checkout-success-animation"><i class="fa-solid fa-check"></i></div>
+      <h2 style="font-size:1.75rem;margin-bottom:0.75rem;">Đặt hàng thành công! 🎉</h2>
+      <p style="color:var(--color-text-light);margin-bottom:1rem;">Cảm ơn bạn đã tin tưởng EcoKnot Gifting. Chúng tôi sẽ chuẩn bị và giao hộp quà của bạn sớm nhất.</p>
+      <div class="checkout-order-id"><i class="fa-solid fa-hashtag"></i> ${orderId}</div>
+      <div style="background:rgba(143,173,136,0.08);border:1px solid rgba(143,173,136,0.25);border-radius:10px;padding:1rem 1.5rem;margin:1rem 0;text-align:center;">
+        <i class="fa-solid fa-leaf" style="color:var(--color-accent);font-size:1.5rem;margin-bottom:0.5rem;"></i>
+        <p style="font-size:0.9rem;">Đơn hàng này đã tránh phát thải <strong style="color:var(--color-accent);">${co2Saved.toFixed(1)} kg CO₂e</strong> so với quà tặng truyền thống!</p>
+      </div>
+      <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin-top:1.5rem;">
+        <button class="btn btn-primary" onclick="navigateTo('tracking')"><i class="fa-solid fa-location-dot"></i> Theo dõi đơn hàng</button>
+        <button class="btn btn-outline" onclick="navigateTo('home')"><i class="fa-solid fa-house"></i> Trang chủ</button>
+      </div>
+    </div>`;
+}
+window.navigateTo = navigateTo;
+
+// ==========================================================================
+// 9. ADMIN DASHBOARD
+// ==========================================================================
+function renderAdmin() {
+  const view = document.getElementById('app-view');
+
+  if (!state.user || state.user.role !== 'admin') {
+    view.innerHTML = `<div class="text-center" style="padding:4rem 0;"><i class="fa-solid fa-shield-halved" style="font-size:2.5rem;color:var(--color-border);margin-bottom:1rem;"></i><h3>Truy cập bị từ chối</h3><p style="margin-top:0.5rem;color:var(--color-text-light);">Bạn cần đăng nhập với tài khoản quản trị viên.</p><p style="font-size:0.82rem;color:var(--color-text-light);margin-top:0.5rem;">Email: admin@ecoknot.vn / Mật khẩu: admin123</p><button class="btn btn-outline" style="margin-top:1rem;" onclick="navigateTo('home')">Quay về trang chủ</button></div>`;
+    return;
+  }
+
+  // Aggregate stats
+  const totalOrders = state.orders.length;
+  const totalRevenue = state.orders.reduce((s, o) => s + o.total, 0);
+  const totalCo2 = state.orders.reduce((s, o) => s + o.metrics.carbonFootprintAvoided, 0);
+  const totalPlastic = state.orders.reduce((s, o) => s + o.metrics.virginPlasticReduction, 0);
+  const deliveredCount = state.orders.filter(o => o.status === 'delivered').length;
+  const allProducts = [...PRODUCTS, ...PRESET_BOXES, ...CATEGORY_PRESETS];
+
+  const activeTab = state.adminCurrentTab || 'overview';
+
+  // Panel content
+  let contentHtml = '<div class="admin-content">';
+
+  // --- TAB: OVERVIEW ---
+  const revenueByMonth = ['T1','T2','T3','T4','T5','T6'].map((m, i) => ({
+    label: m, val: Math.round(totalRevenue * (0.1 + Math.random() * 0.2))
+  }));
+  const maxRev = Math.max(...revenueByMonth.map(r => r.val));
+
+  let overviewHtml = `
+    <div class="admin-panel ${activeTab === 'overview' ? 'active' : ''}" id="admin-panel-overview">
+      <div class="admin-panel-header"><h2><i class="fa-solid fa-gauge-high" style="color:var(--color-accent);margin-right:0.5rem;"></i>Tổng quan hoạt động</h2><span style="font-size:0.8rem;color:var(--color-text-light);">Cập nhật: ${new Date().toLocaleDateString('vi-VN')}</span></div>
+      <div class="kpi-grid">
+        <div class="kpi-card" style="--kpi-color:#8FAD88"><div class="kpi-icon"><i class="fa-solid fa-box"></i></div><div class="kpi-value">${totalOrders}</div><div class="kpi-label">Tổng đơn hàng</div><div class="kpi-trend up"><i class="fa-solid fa-arrow-trend-up"></i> +${deliveredCount} đã giao</div></div>
+        <div class="kpi-card" style="--kpi-color:#e67e22"><div class="kpi-icon"><i class="fa-solid fa-wallet"></i></div><div class="kpi-value">${(totalRevenue/1000000).toFixed(1)}M</div><div class="kpi-label">Doanh thu (VNĐ)</div><div class="kpi-trend up"><i class="fa-solid fa-arrow-trend-up"></i> +15% so với tháng trước</div></div>
+        <div class="kpi-card" style="--kpi-color:#8e44ad"><div class="kpi-icon"><i class="fa-solid fa-tag"></i></div><div class="kpi-value">${allProducts.length}</div><div class="kpi-label">Sản phẩm đang bán</div><div class="kpi-trend neutral"><i class="fa-solid fa-minus"></i> Ổn định</div></div>
+        <div class="kpi-card" style="--kpi-color:#27ae60"><div class="kpi-icon"><i class="fa-solid fa-leaf"></i></div><div class="kpi-value">${totalCo2.toFixed(1)}</div><div class="kpi-label">kg CO₂e đã tránh phát thải</div><div class="kpi-trend up"><i class="fa-solid fa-arrow-trend-up"></i> Tích lũy</div></div>
+      </div>
+      <div class="revenue-chart-card">
+        <div class="chart-header"><h3>Biểu đồ doanh thu tham khảo</h3><span class="chart-period-badge">6 tháng gần nhất</span></div>
+        <div class="admin-bar-chart">`;
+  revenueByMonth.forEach(r => {
+    const pct = Math.round((r.val / maxRev) * 100);
+    overviewHtml += `<div class="admin-bar-col"><div class="admin-bar-val">${(r.val/1000000).toFixed(1)}M</div><div class="admin-bar" style="height:${pct}%;" title="${r.label}: ${r.val}"></div><div class="admin-bar-label">${r.label}</div></div>`;
+  });
+  overviewHtml += `</div></div>
+      <div class="admin-table-card"><div class="admin-table-card-header"><h3>Đơn hàng gần nhất</h3></div>
+        <table class="admin-data-table"><thead><tr><th>Mã đơn</th><th>Ngày</th><th>Tổng tiền</th><th>Trạng thái</th></tr></thead><tbody>`;
+  state.orders.slice(0, 5).forEach(o => {
+    overviewHtml += `<tr><td><strong>${o.id}</strong></td><td>${o.date}</td><td>${formatCurrency(o.total)}</td><td><span class="status-badge ${o.status}">${o.statusText}</span></td></tr>`;
+  });
+  overviewHtml += `</tbody></table></div></div>`;
+
+  // --- TAB: ORDERS ---
+  const filter = state.adminOrderFilter || 'all';
+  const filteredOrders = filter === 'all' ? state.orders : state.orders.filter(o => o.status === filter);
+  const statusFlow = { confirmed: 'processing', processing: 'shipping', shipping: 'delivered' };
+  const statusLabels = { confirmed: 'Đã xác nhận', processing: 'Đang đóng gói', shipping: 'Đang vận chuyển', delivered: 'Đã giao' };
+
+  let ordersHtml = `
+    <div class="admin-panel ${activeTab === 'orders' ? 'active' : ''}" id="admin-panel-orders">
+      <div class="admin-panel-header"><h2><i class="fa-solid fa-box" style="color:var(--color-accent);margin-right:0.5rem;"></i>Quản lý đơn hàng</h2><span style="font-size:0.85rem;color:var(--color-text-light);">Tổng: ${totalOrders} đơn</span></div>
+      <div class="admin-table-card">
+        <div class="admin-filter-row">
+          <button class="admin-filter-btn ${filter==='all'?'active':''}" data-order-filter="all">Tất cả (${state.orders.length})</button>
+          <button class="admin-filter-btn ${filter==='confirmed'?'active':''}" data-order-filter="confirmed">Xác nhận (${state.orders.filter(o=>o.status==='confirmed').length})</button>
+          <button class="admin-filter-btn ${filter==='processing'?'active':''}" data-order-filter="processing">Đóng gói (${state.orders.filter(o=>o.status==='processing').length})</button>
+          <button class="admin-filter-btn ${filter==='shipping'?'active':''}" data-order-filter="shipping">Vận chuyển (${state.orders.filter(o=>o.status==='shipping').length})</button>
+          <button class="admin-filter-btn ${filter==='delivered'?'active':''}" data-order-filter="delivered">Đã giao (${state.orders.filter(o=>o.status==='delivered').length})</button>
+        </div>
+        <div style="overflow-x:auto;"><table class="admin-data-table"><thead><tr><th>Mã đơn</th><th>Ngày đặt</th><th>Khách hàng</th><th>Tổng tiền</th><th>Trạng thái</th><th>Hành động</th></tr></thead><tbody>`;
+  filteredOrders.forEach(o => {
+    const nextStatus = statusFlow[o.status];
+    ordersHtml += `<tr>
+      <td><strong>${o.id}</strong></td>
+      <td style="font-size:0.8rem;">${o.date}</td>
+      <td style="font-size:0.8rem;">${o.shippingInfo?.name || (state.user?.email || 'Khách')}</td>
+      <td><strong>${formatCurrency(o.total)}</strong></td>
+      <td><span class="status-badge ${o.status}">${statusLabels[o.status] || o.statusText}</span></td>
+      <td>${nextStatus ? `<button class="status-update-btn" data-order-id="${o.id}" data-next-status="${nextStatus}"><i class="fa-solid fa-forward"></i> → ${statusLabels[nextStatus]}</button>` : '<span style="font-size:0.75rem;color:var(--color-accent);">✓ Hoàn tất</span>'}</td>
+    </tr>`;
+  });
+  ordersHtml += `</tbody></table></div></div></div>`;
+
+  // --- TAB: PRODUCTS ---
+  let productsHtml = `
+    <div class="admin-panel ${activeTab === 'products' ? 'active' : ''}" id="admin-panel-products">
+      <div class="admin-panel-header" style="display:flex; justify-content:space-between; align-items:center; width:100%; gap: 1rem;">
+        <h2><i class="fa-solid fa-tag" style="color:var(--color-accent);margin-right:0.5rem;"></i>Quản lý sản phẩm</h2>
+        <button class="btn btn-primary" id="admin-add-product-btn" style="padding:0.6rem 1.2rem; font-size:0.9rem; border-radius:8px; display:flex; align-items:center; gap:0.5rem; background-color:var(--color-accent); border:none; color:white; cursor:pointer;"><i class="fa-solid fa-plus"></i> Thêm sản phẩm mới</button>
+      </div>
+      <div class="product-stat-row">
+        <div class="product-stat-chip">Sản phẩm đơn: <span>${PRODUCTS.length}</span></div>
+        <div class="product-stat-chip">Combo đóng sẵn: <span>${PRESET_BOXES.length}</span></div>
+        <div class="product-stat-chip">Mẫu danh mục: <span>${CATEGORY_PRESETS.length}</span></div>
+        <div class="product-stat-chip">Giá thấp nhất: <span>${formatCurrency(Math.min(...PRODUCTS.map(p=>p.price)))}</span></div>
+        <div class="product-stat-chip">Giá cao nhất: <span>${formatCurrency(Math.max(...PRODUCTS.map(p=>p.price)))}</span></div>
+      </div>
+      <div class="admin-table-card"><div class="admin-table-card-header"><h3>Danh sách sản phẩm đơn (${PRODUCTS.length})</h3></div>
+        <div style="overflow-x:auto;"><table class="admin-data-table"><thead><tr><th>Ảnh</th><th>Tên sản phẩm</th><th>Giá</th><th>Tags</th><th>DPP</th></tr></thead><tbody>`;
+  PRODUCTS.forEach(p => {
+    productsHtml += `<tr>
+      <td><img class="admin-product-thumb" src="${p.image}" alt="${p.name}" onerror="this.style.display='none'"></td>
+      <td><strong style="font-size:0.85rem;">${p.name}</strong></td>
+      <td><strong style="color:var(--color-accent);">${formatCurrency(p.price)}</strong></td>
+      <td style="font-size:0.75rem;">${p.tags.slice(0,3).join(', ')}${p.tags.length>3?'...':''}</td>
+      <td><span style="font-size:0.75rem;color:var(--color-accent);font-weight:600;">CO₂: ${p.dpp.carbonFootprintAvoided}kg</span></td>
+    </tr>`;
+  });
+  productsHtml += `</tbody></table></div></div></div>`;
+
+  // --- TAB: SUSTAINABILITY ---
+  const avgRecycled = Math.round(state.orders.reduce((s,o) => s+o.metrics.recycledContent, 0) / Math.max(state.orders.length, 1));
+  let sustainHtml = `
+    <div class="admin-panel ${activeTab === 'sustainability' ? 'active' : ''}" id="admin-panel-sustainability">
+      <div class="admin-panel-header"><h2><i class="fa-solid fa-leaf" style="color:var(--color-accent);margin-right:0.5rem;"></i>Báo cáo Sustainability</h2></div>
+      <div class="sustain-stats-grid">
+        <div class="sustain-stat-card"><i class="fa-solid fa-cloud-sun"></i><div class="sustain-stat-value">${totalCo2.toFixed(1)}</div><div class="sustain-stat-label">kg CO₂e tránh phát thải</div></div>
+        <div class="sustain-stat-card"><i class="fa-solid fa-trash-arrow-up"></i><div class="sustain-stat-value">${totalPlastic}g</div><div class="sustain-stat-label">Nhựa nguyên sinh giảm thiểu</div></div>
+        <div class="sustain-stat-card"><i class="fa-solid fa-recycle"></i><div class="sustain-stat-value">${avgRecycled}%</div><div class="sustain-stat-label">Vật liệu tái chế trung bình</div></div>
+        <div class="sustain-stat-card"><i class="fa-solid fa-box-open"></i><div class="sustain-stat-value">${deliveredCount}</div><div class="sustain-stat-label">Hộp quà xanh đã giao thành công</div></div>
+      </div>
+      <div class="admin-table-card"><div class="admin-table-card-header"><h3>Chỉ số từng đơn hàng</h3></div>
+        <div style="overflow-x:auto;"><table class="admin-data-table"><thead><tr><th>Đơn hàng</th><th>CO₂e tránh (kg)</th><th>Nhựa giảm (g)</th><th>Vật liệu tái chế</th><th>Trạng thái</th></tr></thead><tbody>`;
+  state.orders.forEach(o => {
+    sustainHtml += `<tr>
+      <td><strong>${o.id}</strong></td>
+      <td style="color:var(--color-accent);font-weight:600;">${o.metrics.carbonFootprintAvoided.toFixed(1)}</td>
+      <td>${o.metrics.virginPlasticReduction}</td>
+      <td><div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:60px;height:6px;background:var(--color-border-light);border-radius:3px;overflow:hidden;"><div style="width:${o.metrics.recycledContent}%;height:100%;background:var(--color-accent);border-radius:3px;"></div></div><span style="font-size:0.8rem;">${o.metrics.recycledContent}%</span></div></td>
+      <td><span class="status-badge ${o.status}">${o.statusText}</span></td>
+    </tr>`;
+  });
+  sustainHtml += `</tbody></table></div></div></div>`;
+
+  contentHtml += overviewHtml + ordersHtml + productsHtml + sustainHtml + '</div>';
+
+  view.innerHTML = `
+    <div class="section-title-container">
+      <h2><i class="fa-solid fa-gauge-high" style="color:var(--color-accent);margin-right:0.5rem;"></i>Admin Dashboard</h2>
+      <p class="section-subtitle">Quản trị toàn diện cửa hàng EcoKnot Gifting</p>
+    </div>
+    <div class="admin-layout" style="grid-template-columns: 1fr;">${contentHtml}</div>`;
+
+  // Order filter buttons
+  document.querySelectorAll('.admin-filter-btn[data-order-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.adminOrderFilter = btn.dataset.orderFilter;
+      state.adminCurrentTab = 'orders';
+      renderAdmin();
+    });
+  });
+
+  // Status update buttons
+  document.querySelectorAll('.status-update-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const orderId = btn.dataset.orderId;
+      const nextStatus = btn.dataset.nextStatus;
+      const order = state.orders.find(o => o.id === orderId);
+      if (order) {
+        order.status = nextStatus;
+        order.statusText = { confirmed: 'Đã xác nhận', processing: 'Đang đóng gói', shipping: 'Đang vận chuyển', delivered: 'Đã giao hàng thành công' }[nextStatus];
+        order.tracking.push({ time: new Date().toISOString().replace('T',' ').substring(0,16), desc: `[Admin] Cập nhật trạng thái: ${order.statusText}` });
+        saveStateToStorage();
+        showToast(`Đã cập nhật đơn ${orderId} → ${order.statusText}`);
+        renderAdmin();
+      }
+    });
+  });
+
+  // Add Product Button
+  const addProdBtn = document.getElementById('admin-add-product-btn');
+  if (addProdBtn) {
+    addProdBtn.addEventListener('click', () => {
+      const modal = document.getElementById('add-product-modal');
+      if (modal) modal.classList.add('active');
+    });
+  }
+}
