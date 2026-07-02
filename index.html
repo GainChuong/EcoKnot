@@ -30,6 +30,7 @@
         <ul class="nav-links">
           <li><a href="#home" class="nav-link active" data-route="home">Trang chủ</a></li>
           <li><a href="#customizer" class="nav-link highlight-link" data-route="customizer"><i class="fa-solid fa-gift"></i> Tạo hộp quà</a></li>
+          <li><a href="#care-lendar" class="nav-link" data-route="care-lendar"><i class="fa-solid fa-calendar-days"></i> Lịch sự kiện</a></li>
           <li><a href="#shop" class="nav-link" data-route="shop">Cửa hàng</a></li>
           <li><a href="#b2b" class="nav-link" data-route="b2b">Quà doanh nghiệp</a></li>
           <li><a href="#story" class="nav-link" data-route="story">Câu chuyện thương hiệu</a></li>
@@ -42,6 +43,27 @@
         <div class="search-box">
           <input type="text" id="global-search" placeholder="Tìm quà tặng...">
           <button id="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+        </div>
+
+        <!-- Notification Bell -->
+        <div class="notification-bell-container">
+          <button class="icon-btn" id="notification-bell-btn" aria-label="Thông báo">
+            <i class="fa-solid fa-bell"></i>
+            <span class="cart-badge" id="notification-count" style="display: none; background-color: var(--color-danger); right: -4px; top: -4px;">0</span>
+          </button>
+          
+          <div class="notification-dropdown" id="notification-dropdown">
+            <div class="notification-dropdown-header">
+              <span>Thông báo của bạn</span>
+              <button id="mark-all-read-btn">Đánh dấu đã đọc</button>
+            </div>
+            <div class="notification-dropdown-body" id="notification-list-container">
+              <div style="padding: 1.5rem; text-align: center; color: var(--color-text-light); font-size: 0.85rem;">
+                <i class="fa-regular fa-bell-slash" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.5;"></i>
+                Không có thông báo mới
+              </div>
+            </div>
+          </div>
         </div>
         
         <!-- Cart toggle -->
@@ -84,12 +106,134 @@
       <ul class="mobile-nav-links">
         <li><a href="#home" class="mobile-route" data-route="home">Trang chủ</a></li>
         <li><a href="#customizer" class="mobile-route highlight-link" data-route="customizer"><i class="fa-solid fa-gift"></i> Tạo hộp quà</a></li>
+        <li><a href="#care-lendar" class="mobile-route" data-route="care-lendar"><i class="fa-solid fa-calendar-days"></i> Lịch sự kiện</a></li>
         <li><a href="#shop" class="mobile-route" data-route="shop">Cửa hàng</a></li>
         <li><a href="#b2b" class="mobile-route" data-route="b2b">Quà doanh nghiệp</a></li>
         <li><a href="#story" class="mobile-route" data-route="story">Câu chuyện thương hiệu</a></li>
         <li><a href="#tracking" class="mobile-route" data-route="tracking">Theo dõi đơn hàng</a></li>
         <li><a href="#account" class="mobile-route" data-route="account"><i class="fa-solid fa-circle-user"></i> Tài khoản của tôi</a></li>
       </ul>
+    </div>
+  </div>
+
+  <!-- ================================================================
+       CART SLIDE-OUT PANEL
+       ================================================================ -->
+  <div class="cart-overlay" id="cart-overlay" aria-hidden="true"></div>
+  <aside class="cart-panel" id="cart-panel" role="complementary" aria-label="Gio hang">
+    <div class="cart-panel-header">
+      <div class="cart-panel-title">
+        <i class="fa-solid fa-basket-shopping"></i>
+        <span>Gio hang cua ban</span>
+        <span class="cart-panel-count" id="cart-panel-count">0 mon</span>
+      </div>
+      <button class="cart-panel-close" id="cart-panel-close" aria-label="Dong gio hang">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="cart-panel-body" id="cart-panel-body">
+      <div class="cart-empty-state" id="cart-empty-state">
+        <div class="cart-empty-icon">&#127873;</div>
+        <p>Gio hang cua ban dang trong</p>
+        <button class="btn btn-primary btn-sm" id="cart-empty-cta">
+          <i class="fa-solid fa-plus"></i> Tao hop qua ngay
+        </button>
+      </div>
+      <div id="cart-items-list"></div>
+    </div>
+    <div class="cart-panel-footer" id="cart-panel-footer" style="display:none;">
+      <div class="cart-eco-badge" id="cart-eco-badge">
+        <i class="fa-solid fa-leaf"></i>
+        <span id="cart-eco-text">Gio hang nay tiet kiem <strong>0g</strong> nhua nguyen sinh</span>
+      </div>
+      <div class="cart-price-breakdown">
+        <div class="cart-price-row">
+          <span>Tam tinh</span>
+          <span id="cart-subtotal">0d</span>
+        </div>
+        <div class="cart-price-row cart-price-row--ship">
+          <span>Phi van chuyen <small>(uoc tinh)</small></span>
+          <span id="cart-ship-estimate">35.000d</span>
+        </div>
+        <div class="cart-price-row cart-price-row--total">
+          <span>Tong cong</span>
+          <span id="cart-total">0d</span>
+        </div>
+      </div>
+      <div class="cart-cta-row">
+        <button class="btn btn-primary btn-full" id="cart-checkout-btn">
+          <i class="fa-solid fa-lock"></i> Tien hanh thanh toan
+        </button>
+        <button class="btn btn-outline btn-sm" id="cart-continue-btn">
+          <i class="fa-solid fa-arrow-left"></i> Tiep tuc mua sam
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ================================================================
+       E-INVOICE PRINT TEMPLATE (hidden, used by window.print())
+       ================================================================ -->
+  <div id="invoice-print-area" style="display:none;" aria-hidden="true">
+    <div class="invoice-print-wrapper">
+      <div class="invoice-header">
+        <div class="invoice-logo-area">
+          <img src="/images/Logo.jpg" alt="EcoKnot Logo" class="invoice-logo">
+          <div>
+            <div class="invoice-brand">EcoKnot Gifting</div>
+            <div class="invoice-brand-sub">hello@ecoknot.vn &middot; 1800-ECOKNOT</div>
+            <div class="invoice-brand-sub">MST: 0312345678</div>
+          </div>
+        </div>
+        <div class="invoice-title-block">
+          <h1>HOA DON DIEN TU</h1>
+          <div class="invoice-meta">
+            <div>So HD: <strong id="print-invoice-number">&#8212;</strong></div>
+            <div>Ngay: <strong id="print-invoice-date">&#8212;</strong></div>
+          </div>
+        </div>
+      </div>
+      <div class="invoice-parties">
+        <div class="invoice-party">
+          <div class="invoice-party-label">Ben ban</div>
+          <div><strong>EcoKnot Gifting</strong></div>
+          <div>123 Duong Xanh, Phuong Eco, TP.HCM</div>
+          <div>MST: 0312345678</div>
+        </div>
+        <div class="invoice-party">
+          <div class="invoice-party-label">Ben mua</div>
+          <div id="print-buyer-name"><strong>&#8212;</strong></div>
+          <div id="print-buyer-address">&#8212;</div>
+          <div id="print-buyer-phone">&#8212;</div>
+          <div id="print-buyer-tax" style="display:none;">MST: <span id="print-buyer-tax-val">&#8212;</span></div>
+        </div>
+      </div>
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>STT</th>
+            <th>Mo ta</th>
+            <th>San pham</th>
+            <th>SL</th>
+            <th>Don gia</th>
+            <th>Thanh tien</th>
+          </tr>
+        </thead>
+        <tbody id="print-line-items"></tbody>
+      </table>
+      <div class="invoice-summary-table">
+        <div class="invoice-summary-row"><span>Tam tinh:</span><span id="print-subtotal">&#8212;</span></div>
+        <div class="invoice-summary-row"><span>Phi van chuyen:</span><span id="print-ship">&#8212;</span></div>
+        <div class="invoice-summary-row"><span>Giam gia:</span><span id="print-discount">&#8212;</span></div>
+        <div class="invoice-summary-row invoice-summary-total"><span>TONG THANH TOAN:</span><span id="print-total">&#8212;</span></div>
+      </div>
+      <div class="invoice-payment-info">
+        <div>Phuong thuc: <strong id="print-payment-method">&#8212;</strong></div>
+        <div>Ma GD: <strong id="print-txn-id">&#8212;</strong></div>
+      </div>
+      <div class="invoice-eco-footer">
+        Don hang nay da tiet kiem <strong id="print-co2">&#8212;</strong> kg CO2 va <strong id="print-plastic">&#8212;</strong>g nhua nguyen sinh.
+      </div>
     </div>
   </div>
 
@@ -230,6 +374,20 @@
           <span>Bạn đang giúp giảm <strong id="cart-co2-saved">0</strong> kg CO₂e phát thải!</span>
         </div>
         <button class="btn btn-primary btn-block" id="checkout-btn">Tiến hành thanh toán</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Assist Drawer (Slide-in Panel) -->
+  <div class="cart-drawer-overlay" id="ai-assist-drawer">
+    <div class="cart-drawer ai-assist-drawer-panel">
+      <div class="cart-drawer-header">
+        <h3><i class="fa-solid fa-brain" style="color:var(--color-accent);"></i> Trợ lý AI Gợi Ý</h3>
+        <button class="close-cart-btn" id="close-ai-assist-btn">&times;</button>
+      </div>
+      
+      <div class="cart-drawer-body" id="ai-assist-body">
+        <!-- Dynamic Wizard Steps or AI recommendations will be injected by app.js -->
       </div>
     </div>
   </div>
@@ -522,7 +680,16 @@
     </div>
   </div>
 
+  <!-- Floating AI Assistant Button -->
+  <div class="floating-ai-trigger ai-assist-trigger-btn">
+    <i class="fa-solid fa-brain"></i>
+    <span class="floating-ai-tooltip">Trợ lý AI chọn quà</span>
+  </div>
+
   <!-- Application Script -->
   <script type="module" src="/app.js"></script>
+  <!-- Commerce Module: Cart, Checkout, Tracking, Account, Invoice -->
+  <script src="/commerce.js" defer></script>
 </body>
+
 </html>

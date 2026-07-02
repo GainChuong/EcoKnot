@@ -1,0 +1,561 @@
+{
+  "products": [
+    {
+      "id": "prod-candle",
+      "name": "Nến thơm sáp đậu nành Organic",
+      "category": "handicraft",
+      "price": 150000,
+      "tags": [
+        "eco",
+        "minimal",
+        "lovers",
+        "family",
+        "birthday",
+        "valentine",
+        "anniversary",
+        "thanks"
+      ],
+      "description": "Nến thơm thảo mộc tự nhiên từ sáp đậu nành lành tính, không khói độc, mang hương thơm thư thái của tinh dầu cam ngọt và oải hương."
+    },
+    {
+      "id": "prod-tea",
+      "name": "Trà hoa thảo mộc Hoàng Cúc",
+      "category": "handicraft",
+      "price": 120000,
+      "tags": [
+        "eco",
+        "vintage",
+        "family",
+        "clients",
+        "partners",
+        "thanks",
+        "tet"
+      ],
+      "description": "Trà hoa cúc nguyên bông thu hoạch thủ công tại thung lũng sương mù, giúp an thần, ngủ ngon và thanh nhiệt cơ thể."
+    },
+    {
+      "id": "prod-cup",
+      "name": "Ly tre tự nhiên khắc tên theo yêu cầu",
+      "category": "handicraft",
+      "price": 95000,
+      "tags": [
+        "customization",
+        "minimal",
+        "friends",
+        "colleagues",
+        "birthday",
+        "thanks",
+        "sorry"
+      ],
+      "description": "Sản phẩm thủ công từ thân tre tự nhiên, qua xử lý sấy cát không hóa chất độc hại, phủ sáp ong bảo vệ bề mặt chống thấm nước."
+    },
+    {
+      "id": "prod-soap",
+      "name": "Xà bông thảo dược Mướp Đắng Mật Ong",
+      "category": "handicraft",
+      "price": 75000,
+      "tags": [
+        "eco",
+        "cute",
+        "friends",
+        "lovers",
+        "family",
+        "birthday",
+        "thanks",
+        "sorry"
+      ],
+      "description": "Xà bông sinh dược làm sạch dịu nhẹ từ dịch ép mướp đắng rừng kết hợp mật ong hoa bạc hà vùng cao nguyên đá."
+    },
+    {
+      "id": "prod-notebook",
+      "name": "Sổ tay giấy tái chế Kraft Bìa Cứng",
+      "category": "handicraft",
+      "price": 80000,
+      "tags": [
+        "customization",
+        "minimal",
+        "friends",
+        "colleagues",
+        "clients",
+        "partners",
+        "birthday",
+        "thanks",
+        "corporate"
+      ],
+      "description": "Sổ tay ghi chép cầm tay tiện dụng, chất liệu giấy tái chế không tẩy trắng, chống lóa mắt khi viết dưới ánh sáng mạnh."
+    },
+    {
+      "id": "prod-honey",
+      "name": "Mật ong rừng nguyên chất hoa nhãn",
+      "category": "handicraft",
+      "price": 110000,
+      "tags": [
+        "eco",
+        "family",
+        "clients",
+        "partners",
+        "thanks",
+        "tet",
+        "corporate"
+      ],
+      "description": "Mật ong đặc quánh, màu vàng hổ phách tự nhiên, thu hoạch từ các tổ ong rừng sâu trong thung lũng mùa hoa nhãn nở rộ."
+    },
+    {
+      "id": "prod-tote",
+      "name": "Túi vải Canvas nhuộm chàm tự nhiên",
+      "category": "fashion",
+      "price": 180000,
+      "tags": [
+        "eco",
+        "minimal",
+        "friends",
+        "birthday",
+        "thanks"
+      ],
+      "description": "Túi canvas bền bỉ nhuộm chàm thủ công từ lá cây chàm tự nhiên vùng cao."
+    },
+    {
+      "id": "prod-scarf",
+      "name": "Khăn lụa tơ tằm Bảo Lộc vẽ tay",
+      "category": "fashion",
+      "price": 320000,
+      "tags": [
+        "luxury",
+        "lovers",
+        "family",
+        "anniversary",
+        "thanks"
+      ],
+      "description": "Khăn lụa 100% tơ tằm tự nhiên Bảo Lộc vẽ tay họa tiết cỏ cây mộc mạc."
+    },
+    {
+      "id": "prod-tray",
+      "name": "Khay gỗ dừa khảm xà cừ nghệ thuật",
+      "category": "handicraft",
+      "price": 220000,
+      "tags": [
+        "vintage",
+        "family",
+        "clients",
+        "partners",
+        "thanks",
+        "tet"
+      ],
+      "description": "Khay làm từ thân cây dừa già khảm họa tiết xà cừ óng ánh từ vỏ sò tự nhiên."
+    },
+    {
+      "id": "prod-tea-set",
+      "name": "Bộ ấm chén gốm mộc nung Bát Tràng",
+      "category": "handicraft",
+      "price": 450000,
+      "tags": [
+        "vintage",
+        "luxury",
+        "family",
+        "partners",
+        "thanks",
+        "tet"
+      ],
+      "description": "Bộ ấm chén gốm mộc mạc nung nhiệt độ cao từ đất sét Bát Tràng truyền thống."
+    },
+    {
+      "id": "prod-bamboo-notebook",
+      "name": "Sổ tay bìa tre ép tự nhiên cao cấp",
+      "category": "stationery",
+      "price": 150000,
+      "tags": [
+        "customization",
+        "minimal",
+        "friends",
+        "colleagues",
+        "corporate"
+      ],
+      "description": "Sổ tay cao cấp với bìa tre ép tự nhiên độc bản, ruột giấy kraft tái chế chống lóa."
+    },
+    {
+      "id": "prod-bookmark",
+      "name": "Bộ kẹp giấy & Bookmark đồng cổ điển",
+      "category": "stationery",
+      "price": 90000,
+      "tags": [
+        "minimal",
+        "friends",
+        "colleagues",
+        "birthday",
+        "thanks"
+      ],
+      "description": "Bookmark mạ đồng cổ điển hình hoa lá tinh xảo giúp lưu giữ trang sách yêu thích."
+    }
+  ],
+  "ai_feedback_logs": [
+    {
+      "id": 1,
+      "user_id": "test@email.com",
+      "prompt_id": "sim-smq6wk5cs",
+      "ai_box_material": "box-kraft",
+      "ai_box_size": "size-m",
+      "ai_ribbon": "rib-cotton",
+      "ai_items": [
+        "prod-candle",
+        "prod-tote",
+        "prod-cup"
+      ],
+      "final_items": [
+        "prod-candle",
+        "prod-notebook",
+        "prod-cup"
+      ],
+      "items_removed": [
+        "prod-tote"
+      ],
+      "items_added": [
+        "prod-notebook"
+      ],
+      "items_kept": [
+        "prod-candle",
+        "prod-cup"
+      ],
+      "changed_at": "2026-07-01T18:26:23.681Z"
+    }
+  ],
+  "customer_preference_profiles": [
+    {
+      "user_id": "test@email.com",
+      "survey_recipients": [],
+      "survey_interests": [],
+      "budget_tier": "300_500",
+      "survey_occasions": [],
+      "style_preference": "eco",
+      "purchased_items_count": 0,
+      "preferred_product_ids": [
+        "prod-candle",
+        "prod-cup",
+        "prod-notebook"
+      ],
+      "avoided_product_ids": [
+        "prod-tote"
+      ],
+      "last_updated_at": "2026-07-01T18:26:23.681Z"
+    }
+  ],
+  "customer_recipients": [
+    {
+      "id": 1,
+      "user_id": "admin@ecoknot.vn",
+      "name": "Mẹ Yêu",
+      "relationship_type": "family",
+      "interests": [
+        "eco",
+        "vintage"
+      ],
+      "style_preference": "vintage",
+      "gift_history": [
+        "Hộp quà Vu Lan Xanh",
+        "Trà hoa thảo mộc Hoàng Cúc"
+      ],
+      "total_co2_saved": 4.8,
+      "created_at": "2026-07-01T19:00:24.083Z"
+    },
+    {
+      "id": 2,
+      "user_id": "admin@ecoknot.vn",
+      "name": "Nguyễn Văn A (Bạn thân)",
+      "relationship_type": "friends",
+      "interests": [
+        "customization",
+        "minimal"
+      ],
+      "style_preference": "minimal",
+      "gift_history": [
+        "Ly tre khắc tên theo yêu cầu"
+      ],
+      "total_co2_saved": 1.2,
+      "created_at": "2026-07-01T19:00:24.084Z"
+    }
+  ],
+  "care_lendar_events": [
+    {
+      "id": 1,
+      "user_id": "admin@ecoknot.vn",
+      "recipient_id": 1,
+      "title": "Sinh nhật Mẹ yêu",
+      "event_date": "2026-07-15",
+      "event_type": "birthday",
+      "suggested_box_draft": {
+        "simulation": true,
+        "insight": "Món quà được thiết kế đặc biệt dành riêng cho Mẹ Yêu (mối quan hệ family), tập trung vào các sản phẩm thuộc sở thích eco, vintage với phong cách thiết kế vintage.",
+        "giftBox": {
+          "boxMaterial": "box-bamboo",
+          "boxSize": "size-m",
+          "boxColor": "#dfd6c0",
+          "ribbon": "rib-jute",
+          "ribbonColor": "#bda58d"
+        },
+        "productIds": [
+          "prod-candle",
+          "prod-tea",
+          "prod-soap"
+        ],
+        "reasoning": {
+          "prod-candle": "Được chọn vì phù hợp với phong cách vintage và sở thích của Mẹ Yêu",
+          "prod-tea": "Được chọn vì phù hợp với phong cách vintage và sở thích của Mẹ Yêu",
+          "prod-soap": "Được chọn vì phù hợp với phong cách vintage và sở thích của Mẹ Yêu"
+        }
+      },
+      "notification_triggered": true,
+      "created_at": "2026-07-01T19:00:24.085Z"
+    },
+    {
+      "id": 2,
+      "user_id": "admin@ecoknot.vn",
+      "recipient_id": 2,
+      "title": "Ngày kỷ niệm tình bạn",
+      "event_date": "2026-07-31",
+      "event_type": "anniversary",
+      "suggested_box_draft": null,
+      "notification_triggered": false,
+      "created_at": "2026-07-01T19:00:24.085Z"
+    }
+  ],
+  "notifications": [
+    {
+      "id": 1782932455601,
+      "user_id": "admin@ecoknot.vn",
+      "title": "Gợi ý quà tặng cho Mẹ Yêu",
+      "message": "Chỉ còn 14 ngày nữa là đến Sinh nhật Mẹ yêu của Mẹ Yêu. EcoKnot đã chuẩn bị sẵn một bản thiết kế hộp quà dành riêng cho Mẹ Yêu, bạn có muốn xem thử?",
+      "event_id": 1,
+      "is_read": true,
+      "created_at": "2026-07-01T19:00:55.464Z"
+    }
+  ],
+  "cart": [],
+  "orders": [
+    {
+      "id": "EK-20260620-1001",
+      "user_id": "test@email.com",
+      "customer_name": "Nguyễn Thị Lan",
+      "customer_phone": "0912345678",
+      "customer_email": "test@email.com",
+      "shipping_address": "123 Lê Lợi, Phường Bến Nghé",
+      "province": "TP. Hồ Chí Minh",
+      "district": "Quận 1",
+      "ward": "Phường Bến Nghé",
+      "delivery_method": "standard",
+      "payment_method": "vietqr",
+      "status": "delivered",
+      "carrier_tracking_id": "GHN123456789",
+      "carrier_name": "GHN",
+      "subtotal": 445000,
+      "ship_fee": 35000,
+      "discount": 0,
+      "total": 480000,
+      "coupon_code": null,
+      "vat_invoice_required": false,
+      "company_name": null,
+      "company_tax_id": null,
+      "notes": "Bọc giấy tổ ong thêm cho chắc nhé",
+      "created_at": "2026-06-20T03:30:00.000Z",
+      "updated_at": "2026-06-23T02:12:00.000Z"
+    },
+    {
+      "id": "EK-20260624-1002",
+      "user_id": "test@email.com",
+      "customer_name": "Nguyễn Thị Lan",
+      "customer_phone": "0912345678",
+      "customer_email": "test@email.com",
+      "shipping_address": "123 Lê Lợi, Phường Bến Nghé",
+      "province": "TP. Hồ Chí Minh",
+      "district": "Quận 1",
+      "ward": "Phường Bến Nghé",
+      "delivery_method": "express",
+      "payment_method": "vietqr",
+      "status": "dispatched",
+      "carrier_tracking_id": "GHN987654321",
+      "carrier_name": "GHN",
+      "subtotal": 175000,
+      "ship_fee": 55000,
+      "discount": 0,
+      "total": 230000,
+      "coupon_code": null,
+      "vat_invoice_required": false,
+      "company_name": null,
+      "company_tax_id": null,
+      "notes": "",
+      "created_at": "2026-06-24T09:15:00.000Z",
+      "updated_at": "2026-06-25T07:00:00.000Z"
+    },
+    {
+      "id": "EK-20260625-1003",
+      "user_id": "test@email.com",
+      "customer_name": "Nguyễn Thị Lan",
+      "customer_phone": "0912345678",
+      "customer_email": "test@email.com",
+      "shipping_address": "123 Lê Lợi, Phường Bến Nghé",
+      "province": "TP. Hồ Chí Minh",
+      "district": "Quận 1",
+      "ward": "Phường Bến Nghé",
+      "delivery_method": "standard",
+      "payment_method": "cod",
+      "status": "eco_packaging",
+      "carrier_tracking_id": null,
+      "carrier_name": null,
+      "subtotal": 340000,
+      "ship_fee": 35000,
+      "discount": 0,
+      "total": 375000,
+      "coupon_code": null,
+      "vat_invoice_required": false,
+      "company_name": null,
+      "company_tax_id": null,
+      "notes": "",
+      "created_at": "2026-06-25T02:00:00.000Z",
+      "updated_at": "2026-06-26T01:00:00.000Z"
+    },
+    {
+      "id": "EK-20260701-1004",
+      "user_id": "corp@company.vn",
+      "customer_name": "Công ty TNHH Xanh Việt",
+      "customer_phone": "0281234567",
+      "customer_email": "corp@company.vn",
+      "shipping_address": "250 Đinh Tiên Hoàng, Phường 3",
+      "province": "TP. Hồ Chí Minh",
+      "district": "Bình Thạnh",
+      "ward": "Phường 3",
+      "delivery_method": "standard",
+      "payment_method": "b2b_quote",
+      "status": "pending_quote",
+      "carrier_tracking_id": null,
+      "carrier_name": null,
+      "subtotal": 15000000,
+      "ship_fee": 0,
+      "discount": 0,
+      "total": 15000000,
+      "coupon_code": null,
+      "vat_invoice_required": true,
+      "company_name": "Công ty TNHH Xanh Việt",
+      "company_tax_id": "0312345678",
+      "notes": "100 bộ quà tặng cho đối tác dịp Q3/2026, cần in logo công ty lên hộp",
+      "created_at": "2026-07-01T04:00:00.000Z",
+      "updated_at": "2026-07-01T04:00:00.000Z"
+    }
+  ],
+  "order_items": [
+    {
+      "id": 1,
+      "order_id": "EK-20260620-1001",
+      "item_type": "custom_box",
+      "box_material": "box-kraft",
+      "box_size": "size-m",
+      "ribbon": "rib-cotton",
+      "box_color": "#f3ede2",
+      "items_json": [
+        { "id": "prod-candle", "name": "Nến thơm sáp đậu nành Organic", "price": 150000, "qty": 1 },
+        { "id": "prod-tea", "name": "Trà hoa thảo mộc Hoàng Cúc", "price": 120000, "qty": 1 },
+        { "id": "prod-soap", "name": "Xà bông thảo dược Mướp Đắng Mật Ong", "price": 75000, "qty": 1 }
+      ],
+      "card_text": "Chúc mừng sinh nhật! Cảm ơn bạn vì tất cả 🌿",
+      "photo_url": null,
+      "qty": 1,
+      "unit_price": 445000,
+      "subtotal": 445000,
+      "eco_metrics": { "co2_saved_kg": 1.5, "virgin_plastic_saved_g": 150 }
+    },
+    {
+      "id": 2,
+      "order_id": "EK-20260624-1002",
+      "item_type": "custom_box",
+      "box_material": "box-kraft",
+      "box_size": "size-s",
+      "ribbon": "rib-jute",
+      "box_color": "#f3ede2",
+      "items_json": [
+        { "id": "prod-soap", "name": "Xà bông thảo dược Mướp Đắng Mật Ong", "price": 75000, "qty": 1 },
+        { "id": "prod-bookmark", "name": "Bộ kẹp giấy & Bookmark đồng cổ điển", "price": 90000, "qty": 1 }
+      ],
+      "card_text": "Cảm ơn bạn nhé!",
+      "photo_url": null,
+      "qty": 1,
+      "unit_price": 175000,
+      "subtotal": 175000,
+      "eco_metrics": { "co2_saved_kg": 0.8, "virgin_plastic_saved_g": 80 }
+    },
+    {
+      "id": 3,
+      "order_id": "EK-20260625-1003",
+      "item_type": "custom_box",
+      "box_material": "box-bamboo",
+      "box_size": "size-m",
+      "ribbon": "rib-cotton",
+      "box_color": "#e3dac9",
+      "items_json": [
+        { "id": "prod-honey", "name": "Mật ong rừng nguyên chất hoa nhãn", "price": 110000, "qty": 1 },
+        { "id": "prod-tea", "name": "Trà hoa thảo mộc Hoàng Cúc", "price": 120000, "qty": 1 },
+        { "id": "prod-notebook", "name": "Sổ tay giấy tái chế Kraft Bìa Cứng", "price": 80000, "qty": 1 },
+        { "id": "prod-soap", "name": "Xà bông thảo dược Mướp Đắng Mật Ong", "price": 30000, "qty": 1 }
+      ],
+      "card_text": "Tặng mẹ nhân dịp Vu Lan 💚",
+      "photo_url": null,
+      "qty": 1,
+      "unit_price": 340000,
+      "subtotal": 340000,
+      "eco_metrics": { "co2_saved_kg": 1.8, "virgin_plastic_saved_g": 180 }
+    },
+    {
+      "id": 4,
+      "order_id": "EK-20260701-1004",
+      "item_type": "custom_box",
+      "box_material": "box-kraft",
+      "box_size": "size-l",
+      "ribbon": "rib-cotton",
+      "box_color": "#f3ede2",
+      "items_json": [
+        { "id": "prod-honey", "name": "Mật ong rừng nguyên chất hoa nhãn", "price": 110000, "qty": 1 },
+        { "id": "prod-bamboo-notebook", "name": "Sổ tay bìa tre ép tự nhiên cao cấp", "price": 150000, "qty": 1 }
+      ],
+      "card_text": "Kính tặng quý đối tác — EcoKnot",
+      "photo_url": null,
+      "qty": 100,
+      "unit_price": 150000,
+      "subtotal": 15000000,
+      "eco_metrics": { "co2_saved_kg": 45.0, "virgin_plastic_saved_g": 5000 }
+    }
+  ],
+  "payment_logs": [
+    {
+      "id": 1,
+      "order_id": "EK-20260620-1001",
+      "gateway": "vietqr_manual",
+      "gateway_txn_id": "VQR20260620103045",
+      "gateway_ref": "EK-20260620-1001",
+      "amount": 480000,
+      "status": "success",
+      "raw_payload": { "source": "manual_confirm", "note": "Admin confirmed via dashboard" },
+      "verified_at": "2026-06-20T03:35:00.000Z",
+      "created_at": "2026-06-20T03:30:00.000Z"
+    },
+    {
+      "id": 2,
+      "order_id": "EK-20260624-1002",
+      "gateway": "vietqr_manual",
+      "gateway_txn_id": "VQR20260624161500",
+      "gateway_ref": "EK-20260624-1002",
+      "amount": 230000,
+      "status": "success",
+      "raw_payload": { "source": "manual_confirm" },
+      "verified_at": "2026-06-24T09:20:00.000Z",
+      "created_at": "2026-06-24T09:15:00.000Z"
+    },
+    {
+      "id": 3,
+      "order_id": "EK-20260625-1003",
+      "gateway": "cod",
+      "gateway_txn_id": null,
+      "gateway_ref": "EK-20260625-1003",
+      "amount": 375000,
+      "status": "initiated",
+      "raw_payload": { "source": "cod_on_delivery" },
+      "verified_at": null,
+      "created_at": "2026-06-25T02:00:00.000Z"
+    }
+  ]
+}

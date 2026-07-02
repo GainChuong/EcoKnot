@@ -5,9 +5,22 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "server": "node server.js",
+    "cron": "node server/cron-sweep.js",
+    "cron:schedule": "node server/cron-sweep.js --schedule"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "openai": "^4.52.0"
+  },
+  "optionalDependencies": {
+    "node-cron": "^3.0.3"
   },
   "devDependencies": {
     "vite": "^5.0.0"
   }
 }
+

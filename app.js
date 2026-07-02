@@ -108,7 +108,24 @@ const state = {
   onboardingCurrentStep: 0,
   onboardingAnswers: {},
   aiEnabled: true,
-  aiHistoryDeleted: false
+  aiHistoryDeleted: false,
+  aiAssist: {
+    isOpen: false,
+    step: 1,
+    answers: {
+      recipient: '',
+      occasion: '',
+      budget: '',
+      hobbies: [],
+      style: ''
+    },
+    loading: false,
+    results: null,
+    originalRecommendation: null
+  },
+  notifications: [],
+  relationshipGraph: [],
+  careLendarEvents: []
 };
 
 // ==========================================================================
@@ -137,6 +154,7 @@ function loadStateFromStorage() {
 
   if (storedUser) {
     state.user = JSON.parse(storedUser);
+    loadCareLendarData();
   }
   if (storedCart) {
     state.cart = JSON.parse(storedCart);
@@ -216,6 +234,8 @@ function updateNavigationLinks() {
     desktopHtml = `
       <li><a href="#home" class="nav-link ${state.currentRoute === 'home' ? 'active' : ''}" data-route="home">Trang chủ</a></li>
       <li><a href="#customizer" class="nav-link highlight-link ${state.currentRoute === 'customizer' ? 'active' : ''}" data-route="customizer"><i class="fa-solid fa-gift"></i> Tạo hộp quà</a></li>
+      <li><a href="#" class="nav-link ai-assist-trigger-btn" style="color:var(--color-accent); font-weight:600;"><i class="fa-solid fa-brain"></i> Trợ lý AI</a></li>
+      <li><a href="#care-lendar" class="nav-link ${state.currentRoute === 'care-lendar' ? 'active' : ''}" data-route="care-lendar"><i class="fa-solid fa-calendar-days"></i> Lịch sự kiện</a></li>
       <li><a href="#shop" class="nav-link ${state.currentRoute === 'shop' ? 'active' : ''}" data-route="shop">Cửa hàng</a></li>
       <li><a href="#b2b" class="nav-link ${state.currentRoute === 'b2b' ? 'active' : ''}" data-route="b2b">Quà doanh nghiệp</a></li>
       <li><a href="#story" class="nav-link ${state.currentRoute === 'story' ? 'active' : ''}" data-route="story">Câu chuyện thương hiệu</a></li>
@@ -224,6 +244,8 @@ function updateNavigationLinks() {
     mobileHtml = `
       <li><a href="#home" class="mobile-route ${state.currentRoute === 'home' ? 'active' : ''}" data-route="home">Trang chủ</a></li>
       <li><a href="#customizer" class="mobile-route highlight-link ${state.currentRoute === 'customizer' ? 'active' : ''}" data-route="customizer"><i class="fa-solid fa-gift"></i> Tạo hộp quà</a></li>
+      <li><a href="#" class="mobile-route ai-assist-trigger-btn" style="color:var(--color-accent); font-weight:600;"><i class="fa-solid fa-brain"></i> Trợ lý AI</a></li>
+      <li><a href="#care-lendar" class="mobile-route ${state.currentRoute === 'care-lendar' ? 'active' : ''}" data-route="care-lendar"><i class="fa-solid fa-calendar-days"></i> Lịch sự kiện</a></li>
       <li><a href="#shop" class="mobile-route ${state.currentRoute === 'shop' ? 'active' : ''}" data-route="shop">Cửa hàng</a></li>
       <li><a href="#b2b" class="mobile-route ${state.currentRoute === 'b2b' ? 'active' : ''}" data-route="b2b">Quà doanh nghiệp</a></li>
       <li><a href="#story" class="mobile-route ${state.currentRoute === 'story' ? 'active' : ''}" data-route="story">Câu chuyện thương hiệu</a></li>
@@ -324,6 +346,7 @@ function updateAuthUI() {
 const routes = {
   home: renderHome,
   customizer: renderCustomizer,
+  'care-lendar': renderCareLendar,
   shop: renderShop,
   b2b: renderB2B,
   story: renderStory,
@@ -350,14 +373,25 @@ function navigateTo(route) {
 
   // Wide layout cho admin & checkout, normal cho các trang còn lại
   const appView = document.getElementById('app-view');
-  if (route === 'admin' || route === 'checkout') {
+  if (route === 'admin' || route === 'checkout' || route === 'care-lendar') {
     appView.classList.add('wide-page');
   } else {
     appView.classList.remove('wide-page');
   }
   
-  // Render route content
-  const renderFn = routes[route] || renderHome;
+  // Init checkout state if navigating fresh
+  if (route === 'checkout' && (!state.checkout || !state.checkout.step)) {
+    state.checkout = state.checkout || {};
+    state.checkout.step = 1;
+  }
+
+  // Render route content — use lazy lookup so commerce.js functions resolve correctly
+  let renderFn = routes[route];
+  // Fallback: check window globals (commerce module registers functions here)
+  if (!renderFn && window['render' + route.charAt(0).toUpperCase() + route.slice(1)]) {
+    renderFn = window['render' + route.charAt(0).toUpperCase() + route.slice(1)];
+  }
+  if (!renderFn) renderFn = renderHome;
   renderFn();
   
   // Rebuild navigation links to show tab highlights correctly
@@ -604,6 +638,517 @@ function showAiExplanation(prodId) {
 
   document.body.insertAdjacentHTML('beforeend', html);
 }
+
+// ==========================================================================
+// AI ASSISTANT MODULE (SLIDING DRAWER & WIZARD FLOW)
+// ==========================================================================
+
+function openAiAssistDrawer() {
+  state.aiAssist.isOpen = true;
+  state.aiAssist.step = 1;
+  state.aiAssist.results = null;
+  state.aiAssist.loading = false;
+  state.aiAssist.answers = {
+    recipient: '',
+    occasion: '',
+    budget: '',
+    hobbies: [],
+    style: ''
+  };
+  
+  const drawer = document.getElementById('ai-assist-drawer');
+  if (drawer) drawer.classList.add('active');
+  
+  renderAiAssist();
+}
+
+function closeAiAssistDrawer() {
+  state.aiAssist.isOpen = false;
+  const drawer = document.getElementById('ai-assist-drawer');
+  if (drawer) drawer.classList.remove('active');
+}
+
+function renderAiAssist() {
+  const container = document.getElementById('ai-assist-body');
+  if (!container) return;
+  
+  if (state.aiAssist.loading) {
+    container.innerHTML = `
+      <div class="ai-loading-container">
+        <i class="fa-solid fa-brain fa-spin ai-spinner"></i>
+        <h3 class="ai-loading-title">Trợ lý AI đang thiết kế...</h3>
+        <p class="ai-loading-desc">Chúng tôi đang quét toàn bộ kho sản phẩm xanh, phân tích tâm lý người nhận và tối ưu ngân sách phù hợp nhất cho bạn.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  if (state.aiAssist.results) {
+    renderAiAssistResults(container);
+    return;
+  }
+  
+  renderAiAssistWizard(container);
+}
+
+function renderAiAssistWizard(container) {
+  const step = state.aiAssist.step;
+  const ans = state.aiAssist.answers;
+  
+  const questions = [
+    {
+      id: 1,
+      title: "Ai là người nhận quà?",
+      field: "recipient",
+      type: "radio",
+      options: [
+        { value: "friends", label: "Bạn bè thân thiết", emoji: "👥" },
+        { value: "lovers", label: "Người thương", emoji: "💕" },
+        { value: "family", label: "Gia đình", emoji: "👨‍👩‍👧‍👦" },
+        { value: "colleagues", label: "Đồng nghiệp", emoji: "🤝" },
+        { value: "clients", label: "Khách hàng", emoji: "💼" },
+        { value: "partners", label: "Đối tác B2B", emoji: "🏢" }
+      ]
+    },
+    {
+      id: 2,
+      title: "Món quà nhân dịp gì?",
+      field: "occasion",
+      type: "radio",
+      options: [
+        { value: "birthday", label: "Sinh nhật", emoji: "🎂" },
+        { value: "christmas", label: "Giáng sinh", emoji: "🎄" },
+        { value: "valentine", label: "Lễ Tình nhân", emoji: "💘" },
+        { value: "tet", label: "Dịp Tết cổ truyền", emoji: "🧧" },
+        { value: "anniversary", label: "Kỷ niệm", emoji: "💍" },
+        { value: "thanks", label: "Lời cảm ơn", emoji: "🙏" },
+        { value: "sorry", label: "Lời xin lỗi", emoji: "😊" },
+        { value: "corporate", label: "Quà doanh nghiệp", emoji: "🏛️" }
+      ]
+    },
+    {
+      id: 3,
+      title: "Ngân sách tối đa của bạn?",
+      field: "budget",
+      type: "radio",
+      options: [
+        { value: "under_300", label: "Dưới 300.000đ", emoji: "💵" },
+        { value: "300_500", label: "300.000đ - 500.000đ", emoji: "💵💵" },
+        { value: "500_1000", label: "500.000đ - 1.000.000đ", emoji: "💵💵💵" },
+        { value: "over_1000", label: "Trên 1.000.000đ", emoji: "💎" }
+      ]
+    },
+    {
+      id: 4,
+      title: "Sở thích hoặc mối quan tâm của người nhận?",
+      field: "hobbies",
+      type: "checkbox",
+      options: [
+        { value: "design", label: "Thiết kế đẹp", emoji: "🎨" },
+        { value: "meaning", label: "Ý nghĩa truyền tải", emoji: "💝" },
+        { value: "customization", label: "Cá nhân hóa", emoji: "✏️" },
+        { value: "eco", label: "Lối sống xanh", emoji: "🌿" },
+        { value: "price", label: "Tính kinh tế", emoji: "💰" },
+        { value: "fast_shipping", label: "Giao hỏa tốc", emoji: "🚚" }
+      ]
+    },
+    {
+      id: 5,
+      title: "Phong cách bạn mong muốn?",
+      field: "style",
+      type: "radio",
+      options: [
+        { value: "minimal", label: "Minimal (Tối giản)", emoji: "◻️" },
+        { value: "vintage", label: "Vintage (Mộc mạc xưa)", emoji: "📜" },
+        { value: "luxury", label: "Luxury (Sang trọng)", emoji: "👑" },
+        { value: "eco", label: "Eco (Tự nhiên)", emoji: "🌱" },
+        { value: "cute", label: "Cute (Đáng yêu)", emoji: "🐰" },
+        { value: "modern", label: "Modern (Hiện đại)", emoji: "💻" }
+      ]
+    }
+  ];
+  
+  const qData = questions[step - 1];
+  const percent = Math.round(((step - 1) / questions.length) * 100);
+  
+  let optionsHtml = '<div class="ai-wizard-options-grid">';
+  qData.options.forEach(opt => {
+    let isSelected = false;
+    if (qData.type === 'checkbox') {
+      isSelected = ans[qData.field].includes(opt.value);
+    } else {
+      isSelected = ans[qData.field] === opt.value;
+    }
+    
+    optionsHtml += `
+      <div class="ai-wizard-card ${isSelected ? 'selected' : ''}" data-field="${qData.field}" data-value="${opt.value}" data-type="${qData.type}">
+        <input type="${qData.type}" name="wizard-${qData.field}" value="${opt.value}" ${isSelected ? 'checked' : ''} style="pointer-events:none;">
+        <span class="ai-wizard-emoji">${opt.emoji}</span>
+        <span class="ai-wizard-label">${opt.label}</span>
+      </div>
+    `;
+  });
+  optionsHtml += '</div>';
+  
+  container.innerHTML = `
+    <div class="ai-wizard-header-container">
+      <span class="ai-wizard-step-counter">Bước ${step} / ${questions.length}</span>
+      <span style="font-size:0.8rem; color:var(--color-text-light); font-weight:500;">Chọn thông tin</span>
+    </div>
+    
+    <div class="ai-wizard-progress-bar">
+      <div class="ai-wizard-progress-fill" style="width: ${percent}%;"></div>
+    </div>
+    
+    <h3 style="font-size: 1.15rem; margin-bottom: 0.5rem; font-family: var(--font-title);">${qData.title}</h3>
+    ${optionsHtml}
+    
+    <div class="button-row" style="margin-top: 2rem;">
+      ${step > 1 ? `<button class="btn btn-outline" id="ai-wizard-back-btn" style="flex:1;"><i class="fa-solid fa-arrow-left"></i> Quay lại</button>` : ''}
+      <button class="btn btn-primary" id="ai-wizard-next-btn" style="flex:1;">
+        ${step === questions.length ? 'Phân tích & gợi ý <i class="fa-solid fa-brain"></i>' : 'Tiếp tục <i class="fa-solid fa-arrow-right"></i>'}
+      </button>
+    </div>
+  `;
+  
+  // Bind Option click events
+  container.querySelectorAll('.ai-wizard-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const field = card.dataset.field;
+      const val = card.dataset.value;
+      const type = card.dataset.type;
+      
+      if (type === 'checkbox') {
+        const index = ans[field].indexOf(val);
+        if (index > -1) {
+          ans[field].splice(index, 1);
+        } else {
+          ans[field].push(val);
+        }
+      } else {
+        ans[field] = val;
+      }
+      renderAiAssistWizard(container);
+    });
+  });
+  
+  // Bind Nav clicks
+  const backBtn = document.getElementById('ai-wizard-back-btn');
+  if (backBtn) {
+    backBtn.addEventListener('click', () => {
+      state.aiAssist.step--;
+      renderAiAssist();
+    });
+  }
+  
+  const nextBtn = document.getElementById('ai-wizard-next-btn');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      // Validate option chosen
+      const currentAnswer = ans[qData.field];
+      if (!currentAnswer || (Array.isArray(currentAnswer) && currentAnswer.length === 0)) {
+        showToast('Vui lòng chọn câu trả lời để tiếp tục!');
+        return;
+      }
+      
+      if (step < questions.length) {
+        state.aiAssist.step++;
+        renderAiAssist();
+      } else {
+        submitAiAssistSurvey();
+      }
+    });
+  }
+}
+
+async function submitAiAssistSurvey() {
+  state.aiAssist.loading = true;
+  renderAiAssist();
+  
+  const payload = {
+    userId: state.user?.email || 'guest@ecoknot.vn',
+    survey: state.aiAssist.answers
+  };
+  
+  try {
+    const res = await fetch('/api/ai-suggest', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const data = await res.json();
+    state.aiAssist.results = data;
+  } catch (error) {
+    console.error("AI suggest API failed:", error);
+    showToast("Không thể kết nối máy chủ AI. Đang sử dụng dữ liệu cục bộ.");
+  } finally {
+    state.aiAssist.loading = false;
+    renderAiAssist();
+  }
+}
+
+function renderAiAssistResults(container) {
+  const results = state.aiAssist.results;
+  
+  // Get active configurations from database mapping
+  const boxId = results.giftBox.boxMaterial;
+  const box = BOX_MATERIALS.find(x => x.id === boxId) || BOX_MATERIALS[0];
+  const size = BOX_SIZES.find(x => x.id === results.giftBox.boxSize) || BOX_SIZES[0];
+  const ribbon = RIBBON_TYPES.find(x => x.id === results.giftBox.ribbon) || RIBBON_TYPES[0];
+  
+  // Map selected items to get names/images
+  let totalItemsPrice = 0;
+  const selectedProducts = results.productIds.map(id => {
+    const p = PRODUCTS.find(x => x.id === id);
+    if (p) totalItemsPrice += p.price;
+    return p;
+  }).filter(Boolean);
+  
+  const boxPrice = box.price + size.price;
+  const ribbonPrice = ribbon.price;
+  const totalPrice = totalItemsPrice + boxPrice + ribbonPrice;
+  
+  // Render Flatlay slots
+  let slotsHtml = '';
+  const maxSlots = size.maxItems;
+  for (let i = 0; i < maxSlots; i++) {
+    const prod = selectedProducts[i];
+    if (prod) {
+      slotsHtml += `
+        <div class="ai-flatlay-item-slot" title="${prod.name}">
+          <img src="${prod.image}" alt="${prod.name}" onerror="this.onerror=null; this.src='${IMAGE_FALLBACK}';">
+        </div>
+      `;
+    } else {
+      slotsHtml += `<div class="ai-flatlay-item-slot" style="border-style:dashed; opacity:0.3;"><i class="fa-solid fa-plus" style="font-size:0.8rem; color:#666;"></i></div>`;
+    }
+  }
+
+  // Render Reasoning items list
+  let reasoningHtml = '';
+  selectedProducts.forEach(prod => {
+    const reasonText = results.reasoning[prod.id] || "Sản phẩm đạt chỉ số xanh cao, phù hợp với sở thích của người nhận.";
+    reasoningHtml += `
+      <div class="ai-reasoning-item">
+        <img src="${prod.image}" class="ai-reasoning-img" alt="${prod.name}" onerror="this.onerror=null; this.src='${IMAGE_FALLBACK}';">
+        <div class="ai-reasoning-details">
+          <div class="ai-reasoning-item-name">
+            <span>${prod.name}</span>
+            <span class="ai-reasoning-item-price">${formatCurrency(prod.price)}</span>
+          </div>
+          <p class="ai-reasoning-text">${reasonText}</p>
+        </div>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = `
+    <div class="ai-results-container">
+      ${results.simulation ? `
+        <div class="ai-simulation-indicator">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>Đang chạy ở chế độ giả lập (OPENAI_API_KEY chưa cài đặt).</span>
+        </div>
+      ` : ''}
+      
+      <div class="ai-insight-box">
+        <strong>💡 Insight người nhận:</strong>
+        ${results.insight}
+      </div>
+      
+      <!-- Flatlay Visual Preview -->
+      <div class="ai-flatlay-preview" style="text-align: center;">
+        <div class="ai-flatlay-title" style="text-align: left;">
+          <i class="fa-solid fa-box-open"></i> Xem trước Hộp Quà (${size.name})
+        </div>
+        <div class="ai-flatlay-box-mock ${boxId === 'box-bamboo' ? 'bamboo' : ''}" style="background-color: ${results.giftBox.boxColor}; margin: 0 auto 1.25rem auto;">
+          <!-- Ribbon ribbons -->
+          <div class="ai-flatlay-ribbon-band-h" style="background-color: ${results.giftBox.ribbonColor};"></div>
+          <div class="ai-flatlay-ribbon-band-v" style="background-color: ${results.giftBox.ribbonColor};"></div>
+          <div class="ai-flatlay-ribbon-knot" style="background-color: ${results.giftBox.ribbonColor};">🎀</div>
+        </div>
+        
+        <div class="ai-flatlay-products-title" style="font-size:0.8rem; font-weight:700; color:var(--color-border); text-transform:uppercase; letter-spacing:1px; margin-bottom:0.75rem; text-align: left; display:flex; align-items:center; gap:0.4rem;">
+          <i class="fa-solid fa-gift"></i> Vật phẩm bên trong hộp (${selectedProducts.length}/${size.maxItems} món)
+        </div>
+        <div class="ai-flatlay-products-grid" style="display:flex; gap:0.6rem; justify-content:center; flex-wrap:wrap;">
+          ${slotsHtml}
+        </div>
+      </div>
+      
+      <!-- Reasoning Dashboard -->
+      <div class="ai-reasoning-dashboard">
+        <div class="ai-reasoning-title">
+          <i class="fa-solid fa-brain"></i> Reasoning Dashboard
+        </div>
+        ${reasoningHtml}
+      </div>
+      
+      <!-- Total Price Tracker -->
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; border:1px solid var(--color-border-light); padding:1rem; border-radius:8px;">
+        <span style="font-weight:600; font-size:0.9rem;">Tổng giá trị hộp quà:</span>
+        <strong style="color:var(--color-accent); font-size:1.15rem; font-family:var(--font-title);">${formatCurrency(totalPrice)}</strong>
+      </div>
+      
+      <!-- Action Buttons -->
+      <div style="display:flex; gap:0.8rem; margin-top:0.5rem; flex-direction:column;">
+        ${results.isPredictive ? `
+          <button class="btn btn-primary btn-block" id="ai-add-to-cart-direct-btn" style="background:var(--color-accent);"><i class="fa-solid fa-credit-card"></i> Duyệt đơn và Thanh toán ngay</button>
+          <button class="btn btn-outline btn-block" id="ai-continue-customize-btn"><i class="fa-solid fa-sliders"></i> Tự tay tùy chỉnh thêm (Customizer)</button>
+          <button class="btn btn-secondary btn-block" id="ai-restart-wizard-btn"><i class="fa-solid fa-comments"></i> Tiếp tục trò chuyện với AI Assist</button>
+        ` : `
+          <button class="btn btn-primary btn-block" id="ai-add-to-cart-direct-btn" style="background:var(--color-accent);"><i class="fa-solid fa-cart-plus"></i> Thêm toàn bộ set vào giỏ hàng</button>
+          <button class="btn btn-outline btn-block" id="ai-continue-customize-btn"><i class="fa-solid fa-sliders"></i> Tự tay tùy chỉnh thêm (Customizer)</button>
+          <button class="btn btn-secondary btn-block" id="ai-restart-wizard-btn"><i class="fa-solid fa-rotate-left"></i> Tạo đề xuất khác</button>
+        `}
+      </div>
+    </div>
+  `;
+  
+  // Bind direct add to cart
+  document.getElementById('ai-add-to-cart-direct-btn').addEventListener('click', () => {
+    addAiBoxToCart(results, totalPrice, results.isPredictive);
+  });
+  
+  // Bind customization link
+  document.getElementById('ai-continue-customize-btn').addEventListener('click', () => {
+    continueCustomizingFromAi(results);
+  });
+  
+  // Bind restart survey
+  document.getElementById('ai-restart-wizard-btn').addEventListener('click', () => {
+    state.aiAssist.step = 1;
+    state.aiAssist.results = null;
+    renderAiAssist();
+  });
+}
+
+function continueCustomizingFromAi(results) {
+  // Load AI results into customizer state
+  state.customizer.box = results.giftBox.boxMaterial;
+  state.customizer.size = results.giftBox.boxSize;
+  state.customizer.ribbon = results.giftBox.ribbon;
+  state.customizer.boxOptionType = 'color';
+  state.customizer.boxColor = results.giftBox.boxColor;
+  state.customizer.ribbonOptionType = 'color';
+  state.customizer.ribbonColor = results.giftBox.ribbonColor;
+  state.customizer.items = [...results.productIds];
+  state.customizer.step = 2; // Jump straight to items selection step
+  state.customizer.previewed = true;
+  state.customizer.cardText = '';
+  state.customizer.photo = null;
+  
+  // Retain original recommendation for feedback difference checking
+  state.aiAssist.originalRecommendation = {
+    promptId: results.promptId,
+    boxMaterial: results.giftBox.boxMaterial,
+    boxSize: results.giftBox.boxSize,
+    ribbon: results.giftBox.ribbon,
+    items: [...results.productIds]
+  };
+  
+  closeAiAssistDrawer();
+  navigateTo('customizer');
+  showToast('Đã tải cấu hình từ AI vào bộ công cụ tự thiết kế!');
+}
+
+function addAiBoxToCart(results, price, gotoCheckout = false) {
+  if (state.user && state.user.role === 'admin') {
+    showToast('Tài khoản quản trị viên không thể mua hàng!', 'warning');
+    return;
+  }
+  
+  const boxId = results.giftBox.boxMaterial;
+  const box = BOX_MATERIALS.find(x => x.id === boxId) || BOX_MATERIALS[0];
+  const size = BOX_SIZES.find(x => x.id === results.giftBox.boxSize) || BOX_SIZES[0];
+  const ribbon = RIBBON_TYPES.find(x => x.id === results.giftBox.ribbon) || RIBBON_TYPES[0];
+  
+  // Calculate metrics
+  let recycledSum = 0;
+  let plasticSavedSum = 0;
+  let co2SavedSum = 0;
+  
+  results.productIds.forEach(id => {
+    const p = PRODUCTS.find(x => x.id === id);
+    if (p) {
+      recycledSum += p.dpp.recycledContent;
+      plasticSavedSum += p.dpp.virginPlasticReduction;
+      co2SavedSum += p.dpp.carbonFootprintAvoided;
+    }
+  });
+  
+  const count = results.productIds.length;
+  const avgRecycled = count > 0 ? Math.round(recycledSum / count) : 90;
+  
+  const newCartItem = {
+    id: 'ai-box-' + Date.now(),
+    type: 'custom',
+    box: boxId,
+    size: results.giftBox.boxSize,
+    ribbon: results.giftBox.ribbon,
+    boxOptionType: 'color',
+    boxColor: results.giftBox.boxColor,
+    ribbonOptionType: 'color',
+    ribbonColor: results.giftBox.ribbonColor,
+    items: [...results.productIds],
+    card: { text: '', font: 'var(--font-body)', color: '#3E3E3E' },
+    photo: null,
+    qty: 1,
+    price: price,
+    metrics: {
+      recycledContent: avgRecycled,
+      recyclabilityRate: 100,
+      reusablePackaging: boxId === 'box-bamboo' ? 100 : 90,
+      renewableMaterial: 95,
+      virginPlasticReduction: plasticSavedSum + 100,
+      carbonFootprintAvoided: parseFloat((co2SavedSum + box.co2).toFixed(2))
+    }
+  };
+  
+  state.cart.push(newCartItem);
+  saveStateToStorage();
+  updateCartCount();
+  
+  // Immediately log feedback (User bought exactly what AI suggested, no changes)
+  logAiFeedback({
+    userId: state.user?.email || 'guest@ecoknot.vn',
+    promptId: results.promptId,
+    aiBoxMaterial: boxId,
+    aiBoxSize: results.giftBox.boxSize,
+    aiRibbon: results.giftBox.ribbon,
+    aiItems: results.productIds,
+    finalItems: results.productIds
+  });
+  
+  closeAiAssistDrawer();
+  if (gotoCheckout) {
+    navigateTo('checkout');
+    showToast('Đã duyệt thiết kế gợi ý và chuyển đến trang thanh toán!');
+  } else {
+    openCartDrawer();
+    showToast('Đã thêm set quà của trợ lý AI vào giỏ hàng!');
+  }
+}
+
+async function logAiFeedback(payload) {
+  try {
+    const res = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    console.log('[AI Assist Feedback Loop Logged]', data);
+  } catch (error) {
+    console.error('Failed to log AI feedback:', error);
+  }
+}
+
 window.showAiExplanation = showAiExplanation; // expose globally
 
 // ==========================================================================
@@ -684,7 +1229,10 @@ function renderHome() {
       <div class="hero-content">
         <h1>Hơn cả một vật phẩm, đó là nghệ thuật của sự kết nối</h1>
         <p>Chúng tôi tin rằng, mỗi món quà được trao đi không chỉ để kỷ niệm một dịp đặc biệt, mà là phương tiện để bạn gửi gắm câu chuyện, cái tôi độc bản và trách nhiệm với hành tinh xanh.</p>
-        <button class="btn btn-primary" id="hero-cta-btn">Bắt đầu món quà độc bản <i class="fa-solid fa-gift"></i></button>
+        <div style="display:flex; gap:1rem; justify-content:center; flex-wrap:wrap; margin-top:1.5rem;">
+          <button class="btn btn-primary" id="hero-cta-btn">Tự thiết kế hộp quà <i class="fa-solid fa-gift"></i></button>
+          <button class="btn btn-secondary ai-assist-trigger-btn" style="background:var(--color-accent); color:white; border-color:var(--color-accent);"><i class="fa-solid fa-brain"></i> Trợ lý AI chọn quà</button>
+        </div>
       </div>
     </section>
   `;
@@ -1077,8 +1625,23 @@ function renderCustomizer() {
             <div class="ribbon-horizontal active-ribbon" style="${getRibbonStyle()}"></div>
             <div class="ribbon-knot active-ribbon" style="${getRibbonStyle()}"></div>
 
-            <!-- Items Slots grid (Max 8 slots depending on size) -->
-            <div class="items-inside-preview">
+            <!-- Greeting Card & Custom Image overlay -->
+            <div class="preview-card-message" id="preview-card-container" style="display: ${state.customizer.cardText || state.customizer.photo ? 'flex' : 'none'};">
+              ${state.customizer.photo ? `<img class="preview-card-photo" src="${state.customizer.photo}" alt="Uploaded photo">` : ''}
+              <div class="preview-card-text" style="font-family: ${state.customizer.cardFont}; color: ${state.customizer.cardColor};">
+                ${state.customizer.cardText || "Lời chúc của bạn..."}
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="live-preview-overlay-text mb-2"><i class="fa-solid fa-eye"></i> Đây là bản thiết kế 2D thời gian thực của hộp quà.</p>
+
+        <!-- Selected products listed horizontally below closed box cover -->
+        <div class="customizer-selected-items-preview" style="margin-top: 1.25rem; background: var(--bg-secondary); padding: 1.2rem; border-radius: var(--border-radius); border: 1.5px dashed var(--color-border-light); text-align: left;">
+          <h4 style="font-size: 0.85rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--color-text); display: flex; align-items: center; gap: 0.4rem; font-family: var(--font-title);">
+            <i class="fa-solid fa-gift" style="color: var(--color-accent);"></i> Vật phẩm bên trong hộp (${state.customizer.items.length}/${activeSize.maxItems} món)
+          </h4>
+          <div style="display: flex; gap: 0.6rem; justify-content: flex-start; flex-wrap: wrap;">
   `;
 
   // Draw slots
@@ -1098,18 +1661,8 @@ function renderCustomizer() {
   }
 
   html += `
-            </div>
-
-            <!-- Greeting Card & Custom Image overlay -->
-            <div class="preview-card-message" id="preview-card-container" style="display: ${state.customizer.cardText || state.customizer.photo ? 'flex' : 'none'};">
-              ${state.customizer.photo ? `<img class="preview-card-photo" src="${state.customizer.photo}" alt="Uploaded photo">` : ''}
-              <div class="preview-card-text" style="font-family: ${state.customizer.cardFont}; color: ${state.customizer.cardColor};">
-                ${state.customizer.cardText || "Lời chúc của bạn..."}
-              </div>
-            </div>
           </div>
         </div>
-        <p class="live-preview-overlay-text mb-2"><i class="fa-solid fa-eye"></i> Đây là bản thiết kế 2D thời gian thực của hộp quà.</p>
       </div>
 
       <!-- Panel: Configuration Steps (Right) -->
@@ -1336,6 +1889,18 @@ function renderCustomizer() {
           <div>
             <h3 class="customizer-title">Chọn quà đặt bên trong</h3>
             <p class="customizer-desc">Hộp của bạn chứa tối đa <strong>${activeSize.maxItems}</strong> món. Đang chọn <strong>${state.customizer.items.length}/${activeSize.maxItems}</strong> món.</p>
+            
+            <div style="background-color: rgba(143,173,136,0.1); border: 1px dashed var(--color-accent); padding: 1rem; border-radius: 8px; margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                <i class="fa-solid fa-brain" style="color: var(--color-accent); font-size: 1.3rem;"></i>
+                <div style="text-align: left;">
+                  <span style="font-weight: 700; font-size: 0.85rem; display: block; color: var(--color-text);">Bạn chưa rõ nên chọn gì?</span>
+                  <span style="font-size: 0.78rem; color: var(--color-text-light);">Để Trợ lý AI thiết kế hộp quà phù hợp nhất chỉ trong 1 phút.</span>
+                </div>
+              </div>
+              <button class="btn btn-primary ai-assist-trigger-btn" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; border-radius: 6px;"><i class="fa-solid fa-brain"></i> Dùng Trợ lý AI</button>
+            </div>
+
             <div class="items-list-grid">
   `;
 
@@ -1852,6 +2417,21 @@ function renderCustomizer() {
       state.cart.push(newCartItem);
       saveStateToStorage();
       updateCartCount();
+      
+      // Log feedback deviation if customized from AI suggest results
+      if (state.aiAssist.originalRecommendation) {
+        logAiFeedback({
+          userId: state.user?.email || 'guest@ecoknot.vn',
+          promptId: state.aiAssist.originalRecommendation.promptId,
+          aiBoxMaterial: state.aiAssist.originalRecommendation.boxMaterial,
+          aiBoxSize: state.aiAssist.originalRecommendation.boxSize,
+          aiRibbon: state.aiAssist.originalRecommendation.ribbon,
+          aiItems: state.aiAssist.originalRecommendation.items,
+          finalItems: newCartItem.items
+        });
+        state.aiAssist.originalRecommendation = null; // Clear active session tracking
+      }
+
       showToast('Đã thêm hộp quà tùy biến vào giỏ hàng thành công!');
       
       // Reset customization options
@@ -3390,6 +3970,31 @@ function placeOrder() {
     }
   };
 
+  // Notify backend database profile about completed purchase for preference mapping
+  if (state.user) {
+    const purchasedIds = [];
+    state.cart.forEach(item => {
+      if (item.type === 'custom') {
+        purchasedIds.push(...item.items);
+      } else if (item.id) {
+        purchasedIds.push(item.id);
+      }
+    });
+    
+    if (purchasedIds.length > 0) {
+      fetch('/api/purchase-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: state.user.email,
+          items: purchasedIds
+        })
+      }).then(res => res.json())
+        .then(data => console.log('[Purchase logged for AI Profile]', data))
+        .catch(err => console.error('Failed to log purchase:', err));
+    }
+  }
+
   state.orders.unshift(newOrder);
   state.cart = [];
   saveStateToStorage();
@@ -3402,7 +4007,7 @@ function placeOrder() {
 // ==========================================================================
 // INITIALIZATION & BINDINGS
 // ==========================================================================
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
   // Load state
   loadStateFromStorage();
   
@@ -3477,6 +4082,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loginModal.classList.remove('active');
       document.getElementById('login-email').value = '';
       document.getElementById('login-password').value = '';
+      loadCareLendarData();
       if (isAdmin) {
         showToast('Đăng nhập Admin thành công! Chào mừng quản trị viên.');
         navigateTo('admin');
@@ -3587,6 +4193,25 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.target === cartOverlay) closeCartDrawer();
     });
   }
+
+  // AI Assist Drawer toggles
+  const closeAiBtn = document.getElementById('close-ai-assist-btn');
+  const aiOverlay = document.getElementById('ai-assist-drawer');
+  if (closeAiBtn) closeAiBtn.addEventListener('click', closeAiAssistDrawer);
+  if (aiOverlay) {
+    aiOverlay.addEventListener('click', (e) => {
+      if (e.target === aiOverlay) closeAiAssistDrawer();
+    });
+  }
+
+  // Global event delegator for AI triggers
+  document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.ai-assist-trigger-btn');
+    if (trigger) {
+      e.preventDefault();
+      openAiAssistDrawer();
+    }
+  });
 
   // Checkout button
   const checkoutBtn = document.getElementById('checkout-btn');
@@ -3701,7 +4326,60 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.key === 'Enter') triggerSearch();
     });
   }
-});
+
+  // Notification Bell toggles
+  const bellBtn = document.getElementById('notification-bell-btn');
+  const bellDropdown = document.getElementById('notification-dropdown');
+  const markAllReadBtn = document.getElementById('mark-all-read-btn');
+
+  if (bellBtn && bellDropdown) {
+    bellBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!state.user) {
+        showToast("Vui lòng đăng nhập để xem thông báo!");
+        document.getElementById('login-modal').classList.add('active');
+        return;
+      }
+      bellDropdown.classList.toggle('show');
+    });
+  }
+
+  // Close bell dropdown on outside click
+  document.addEventListener('click', (e) => {
+    if (bellDropdown && !e.target.closest('.notification-bell-container')) {
+      bellDropdown.classList.remove('show');
+    }
+  });
+
+  if (markAllReadBtn) {
+    markAllReadBtn.addEventListener('click', async () => {
+      const unread = state.notifications.filter(n => !n.is_read);
+      if (unread.length === 0) return;
+      
+      const email = state.user?.email || 'admin@ecoknot.vn';
+      for (let n of unread) {
+        try {
+          await fetch(`/api/notifications/${n.id}/read`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: email })
+          });
+          n.is_read = true;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      updateNotificationsUI();
+      showToast("Đã đánh dấu đọc tất cả thông báo!");
+    });
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 // ==========================================================================
 // 8. CHECKOUT PAGE
@@ -4158,3 +4836,651 @@ function renderAdmin() {
     });
   }
 }
+
+// ==========================================================================
+// 10. CARE-LENDAR & PREDICTIVE SYSTEM
+// ==========================================================================
+
+async function loadCareLendarData() {
+  const userId = state.user?.email || 'admin@ecoknot.vn';
+  try {
+    // 1. Fetch Relationship Graph
+    const resGraph = await fetch(`/api/relationship-graph?userId=${userId}`);
+    state.relationshipGraph = await resGraph.json();
+
+    // 2. Fetch Events
+    const resEvents = await fetch(`/api/care-lendar/events?userId=${userId}`);
+    state.careLendarEvents = await resEvents.json();
+
+    // 3. Fetch Notifications
+    const resNotifs = await fetch(`/api/notifications?userId=${userId}`);
+    state.notifications = await resNotifs.json();
+
+    // Update notification bell count
+    updateNotificationsUI();
+  } catch (e) {
+    console.error("Failed to load Care-lendar data:", e);
+  }
+}
+
+function updateNotificationsUI() {
+  const countBadge = document.getElementById('notification-count');
+  const listContainer = document.getElementById('notification-list-container');
+  if (!countBadge || !listContainer) return;
+
+  const unreadNotifs = state.notifications.filter(n => !n.is_read);
+  const count = unreadNotifs.length;
+
+  if (count > 0) {
+    countBadge.innerText = count;
+    countBadge.style.display = 'flex';
+  } else {
+    countBadge.style.display = 'none';
+  }
+
+  if (state.notifications.length === 0) {
+    listContainer.innerHTML = `
+      <div style="padding: 1.5rem; text-align: center; color: var(--color-text-light); font-size: 0.85rem;">
+        <i class="fa-regular fa-bell-slash" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; opacity: 0.5;"></i>
+        Không có thông báo mới
+      </div>
+    `;
+    return;
+  }
+
+  let html = '';
+  state.notifications.forEach(n => {
+    const timeStr = new Date(n.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + new Date(n.created_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+    html += `
+      <div class="notification-item ${n.is_read ? '' : 'unread'}" data-notification-id="${n.id}">
+        <div class="notification-item-title-row">
+          <span class="notification-item-title">${n.title}</span>
+          <span class="notification-item-time">${timeStr}</span>
+        </div>
+        <div class="notification-item-desc">${n.message}</div>
+        <div class="notification-item-cta">
+          <i class="fa-solid fa-brain"></i> Xem gợi ý quà thiết kế sẵn <i class="fa-solid fa-arrow-right" style="margin-left:auto; font-size:0.7rem;"></i>
+        </div>
+      </div>
+    `;
+  });
+  listContainer.innerHTML = html;
+
+  // Bind click event on notification items
+  listContainer.querySelectorAll('.notification-item').forEach(item => {
+    item.addEventListener('click', async () => {
+      const notifId = parseInt(item.dataset.notificationId);
+      const notif = state.notifications.find(n => n.id === notifId);
+      if (!notif) return;
+
+      // Close dropdown
+      document.getElementById('notification-dropdown').classList.remove('show');
+
+      // Mark as read
+      try {
+        await fetch(`/api/notifications/${notifId}/read`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: state.user?.email || 'admin@ecoknot.vn' })
+        });
+        notif.is_read = true;
+        updateNotificationsUI();
+      } catch (err) {
+        console.error("Mark read API failed:", err);
+      }
+
+      // Load draft recommendation to drawer
+      const event = state.careLendarEvents.find(e => e.id === notif.event_id);
+      if (event && event.suggested_box_draft) {
+        // Open drawer with this draft
+        state.aiAssist.results = event.suggested_box_draft;
+        state.aiAssist.isOpen = true;
+        
+        const drawer = document.getElementById('ai-assist-drawer');
+        if (drawer) drawer.classList.add('active');
+        
+        renderAiAssist();
+      } else {
+        showToast("Không tìm thấy bản nháp hộp quà hoặc bản nháp chưa sẵn sàng.");
+      }
+    });
+  });
+}
+
+function renderCareLendar() {
+  const view = document.getElementById('app-view');
+  if (!view) return;
+
+  if (!state.user) {
+    view.innerHTML = `
+      <div class="text-center" style="padding: 4rem 0;">
+        <i class="fa-solid fa-calendar-days" style="font-size: 3rem; color: var(--color-border); margin-bottom: 1rem; display:block;"></i>
+        <p>Vui lòng đăng nhập để sử dụng chức năng Lịch sự kiện &amp; Bản đồ mối quan hệ.</p>
+        <button class="btn btn-primary mt-2" onclick="document.getElementById('login-modal').classList.add('active')">Đăng nhập</button>
+      </div>
+    `;
+    return;
+  }
+
+  // ─── Build Month Calendar Grid ─────────────────────────────────────────────
+  const now = state._calendarDate ? new Date(state._calendarDate) : new Date();
+  const year  = now.getFullYear();
+  const month = now.getMonth(); // 0-indexed
+
+  const monthNames = ['Tháng 1','Tháng 2','Tháng 3','Tháng 4','Tháng 5','Tháng 6',
+                      'Tháng 7','Tháng 8','Tháng 9','Tháng 10','Tháng 11','Tháng 12'];
+  const dayNames   = ['CN','T2','T3','T4','T5','T6','T7'];
+
+  const firstDayOfMonth = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth     = new Date(year, month + 1, 0).getDate();
+  const today           = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Build event lookup by date string "YYYY-MM-DD"
+  const eventsByDate = {};
+  state.careLendarEvents.forEach(ev => {
+    const d = ev.event_date; // "YYYY-MM-DD"
+    if (!eventsByDate[d]) eventsByDate[d] = [];
+    eventsByDate[d].push(ev);
+  });
+
+  // Calendar cells
+  let calendarCells = '';
+  // Empty cells before first day
+  for (let i = 0; i < firstDayOfMonth; i++) {
+    calendarCells += `<div class="cal-cell empty"></div>`;
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr  = `${year}-${String(month + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayDate  = new Date(year, month, d);
+    const isToday  = dayDate.getTime() === today.getTime();
+    const evList   = eventsByDate[dateStr] || [];
+    const hasDraft = evList.some(e => e.suggested_box_draft);
+    const dots     = evList.map(ev => {
+      const color = hasDraft ? '#8FAD88' : '#e67e22';
+      return `<span class="cal-dot" style="background:${color};" title="${ev.title}"></span>`;
+    }).join('');
+
+    calendarCells += `
+      <div class="cal-cell ${isToday ? 'today' : ''} ${evList.length > 0 ? 'has-event' : ''}"
+           data-date="${dateStr}" ${evList.length > 0 ? 'style="cursor:pointer;"' : ''}>
+        <span class="cal-day-num">${d}</span>
+        ${dots ? `<div class="cal-dots">${dots}</div>` : ''}
+      </div>`;
+  }
+
+  // ─── Relationship Graph Nodes ───────────────────────────────────────────────
+  let relationshipHtml = '';
+  if (state.relationshipGraph.length === 0) {
+    relationshipHtml = `
+      <div style="padding:2rem; text-align:center; color:var(--color-text-light); font-size:0.9rem;">
+        <i class="fa-solid fa-user-group" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:0.75rem;"></i>
+        Chưa có người nhận nào trong mạng lưới của bạn.
+      </div>
+    `;
+  } else {
+    const relTypeLabel = { friends:'Bạn bè', lovers:'Người thương', family:'Gia đình', colleagues:'Đồng nghiệp', clients:'Khách hàng', partners:'Đối tác' };
+    const relTypeColor = { friends:'#3498db', lovers:'#e74c3c', family:'#8FAD88', colleagues:'#9b59b6', clients:'#e67e22', partners:'#16a085' };
+
+    state.relationshipGraph.forEach(rc => {
+      const interestsHtml  = (rc.interests || []).map(t => `<span class="interest-tag">${t.toUpperCase()}</span>`).join('');
+      const lastGift       = rc.gift_history && rc.gift_history.length > 0 ? rc.gift_history[rc.gift_history.length - 1] : 'Chưa tặng';
+      const rcColor        = relTypeColor[rc.relationship_type] || '#8FAD88';
+      const rcLabel        = relTypeLabel[rc.relationship_type] || rc.relationship_type;
+      const initials       = rc.name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+      const eventCount     = state.careLendarEvents.filter(e => e.recipient_id === rc.id).length;
+
+      relationshipHtml += `
+        <div class="recipient-node-card">
+          <div class="recipient-avatar-circle" style="background:${rcColor}20; border:2px solid ${rcColor}40; color:${rcColor}; font-weight:700; font-size:1rem; width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            ${initials}
+          </div>
+          <div class="recipient-info">
+            <div class="recipient-name-row">
+              <strong>${rc.name}</strong>
+              <span class="relationship-badge" style="background:${rcColor}18; color:${rcColor}; border:1px solid ${rcColor}30; font-size:0.65rem; padding:0.2rem 0.55rem; border-radius:999px; font-weight:600; text-transform:uppercase;">${rcLabel}</span>
+            </div>
+            <div class="recipient-meta-row">
+              <span class="recipient-meta-item co2"><i class="fa-solid fa-leaf"></i> ${(rc.total_co2_saved || 0).toFixed(1)} kg CO₂</span>
+              <span class="recipient-meta-item"><i class="fa-regular fa-calendar"></i> ${eventCount} sự kiện</span>
+            </div>
+            <div class="recipient-meta-row" style="margin-top:0.25rem;">
+              <span class="recipient-meta-item" style="font-size:0.72rem; color:var(--color-text-light);"><i class="fa-solid fa-gift"></i> ${lastGift}</span>
+            </div>
+            <div class="interests-tag-row" style="margin-top:0.4rem;">${interestsHtml}</div>
+          </div>
+          <div class="recipient-actions">
+            <button class="icon-btn delete-recipient-btn" data-recipient-id="${rc.id}" style="color:var(--color-danger); font-size:0.9rem;" title="Xóa mối quan hệ">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  // ─── Timeline Events List ───────────────────────────────────────────────────
+  let eventsHtml = '';
+  if (state.careLendarEvents.length === 0) {
+    eventsHtml = `
+      <div style="padding:2rem; text-align:center; color:var(--color-text-light); font-size:0.9rem;">
+        <i class="fa-regular fa-calendar-xmark" style="font-size:2rem; opacity:0.3; display:block; margin-bottom:0.75rem;"></i>
+        Chưa có sự kiện nào được ghi nhận.
+      </div>
+    `;
+  } else {
+    const eventTypeIcon = { birthday:'🎂', anniversary:'💕', tet:'🏮', christmas:'🎄', valentine:'💝', thanks:'🙏', sorry:'🌸', corporate:'🏢' };
+    const sortedEvents  = [...state.careLendarEvents].sort((a,b) => new Date(a.event_date) - new Date(b.event_date));
+
+    sortedEvents.forEach(ev => {
+      const evDate    = new Date(ev.event_date);
+      const day       = evDate.getDate();
+      const monthNum  = `Thg ${evDate.getMonth() + 1}`;
+      const rcName    = ev.recipient ? ev.recipient.name : 'Người nhận không rõ';
+
+      const evDateNorm = new Date(ev.event_date); evDateNorm.setHours(0,0,0,0);
+      const todayNorm  = new Date(); todayNorm.setHours(0,0,0,0);
+      const diffDays   = Math.ceil((evDateNorm - todayNorm) / (1000 * 60 * 60 * 24));
+
+      const icon = eventTypeIcon[ev.event_type] || '📅';
+
+      let statusBadge = '';
+      if (diffDays < 0)       statusBadge = `<span class="timeline-event-status-badge past">Đã diễn ra</span>`;
+      else if (diffDays === 0) statusBadge = `<span class="timeline-event-status-badge today-badge">🔴 Hôm nay!</span>`;
+      else if (diffDays <= 7)  statusBadge = `<span class="timeline-event-status-badge urgent">⚡ Còn ${diffDays} ngày</span>`;
+      else if (diffDays <= 14) statusBadge = `<span class="timeline-event-status-badge soon">Còn ${diffDays} ngày</span>`;
+      else                     statusBadge = `<span class="timeline-event-status-badge">Còn ${diffDays} ngày</span>`;
+
+      let ctaHtml = '';
+      if (ev.suggested_box_draft) {
+        ctaHtml = `<button class="btn btn-primary btn-outline view-suggested-box-btn" data-event-id="${ev.id}" style="padding:0.3rem 0.7rem; font-size:0.72rem; display:flex; align-items:center; gap:0.3rem; border-radius:6px;">
+          <i class="fa-solid fa-brain"></i> Xem hộp quà AI
+        </button>`;
+      } else if (diffDays > 0 && diffDays <= 14) {
+        ctaHtml = `<span style="font-size:0.68rem; color:var(--color-text-light); font-style:italic; display:flex; align-items:center; gap:0.3rem;"><i class="fa-solid fa-spinner fa-spin"></i> Đang tạo gợi ý...</span>`;
+      }
+
+      eventsHtml += `
+        <div class="timeline-event-card ${ev.suggested_box_draft ? 'has-draft' : ''}">
+          <div class="timeline-date-badge">
+            <span class="timeline-date-day">${day}</span>
+            <span class="timeline-date-month">${monthNum}</span>
+          </div>
+          <div class="timeline-event-info">
+            <div class="timeline-event-title">${icon} ${ev.title}</div>
+            <div class="timeline-event-recipient"><i class="fa-solid fa-circle-user"></i> <strong>${rcName}</strong></div>
+            ${statusBadge}
+          </div>
+          <div class="timeline-event-actions">
+            ${ctaHtml}
+            <button class="icon-btn delete-event-btn" data-event-id="${ev.id}" style="color:var(--color-danger); font-size:0.8rem; padding:0.2rem;" title="Xóa sự kiện">
+              <i class="fa-solid fa-calendar-minus"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  // ─── Set View HTML ─────────────────────────────────────────────────────────
+  view.innerHTML = `
+    <div class="section-title-container">
+      <h2><i class="fa-solid fa-calendar-heart" style="color:var(--color-accent);margin-right:0.5rem;"></i>Care-lendar &amp; Relationship Graph</h2>
+      <p class="section-subtitle">Lập lịch trình sự kiện, lưu giữ mạng lưới yêu thương và nhận gợi ý quà thông minh từ AI</p>
+    </div>
+
+    <!-- Sweep Simulation Banner -->
+    <div class="sweep-banner">
+      <div>
+        <h4><i class="fa-solid fa-wand-magic-sparkles"></i> Predictive Engine (Simulation)</h4>
+        <p>Chạy quét để giả lập tác vụ cron hàng ngày. Hệ thống sẽ phát hiện các sự kiện diễn ra sau đúng 14 ngày (t-14) và tự động thiết kế hộp quà bằng AI.</p>
+      </div>
+      <button class="btn btn-primary" id="simulation-cron-sweep-btn">
+        <i class="fa-solid fa-network-wired"></i> Chạy Sweep Cron (t-14)
+      </button>
+    </div>
+
+    <div class="care-lendar-main-grid">
+      <!-- LEFT COLUMN -->
+      <div class="care-lendar-left-col">
+
+        <!-- Month Calendar Grid -->
+        <div class="care-lendar-section-card">
+          <div class="care-lendar-header-row">
+            <h3><i class="fa-regular fa-calendar"></i> Lịch tháng</h3>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <button class="cal-nav-btn" id="cal-prev-btn"><i class="fa-solid fa-chevron-left"></i></button>
+              <span style="font-size:0.9rem; font-weight:600; color:var(--color-text);">${monthNames[month]} ${year}</span>
+              <button class="cal-nav-btn" id="cal-next-btn"><i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+
+          <div class="month-calendar">
+            <div class="cal-header-row">
+              ${dayNames.map(d => `<div class="cal-header-cell">${d}</div>`).join('')}
+            </div>
+            <div class="cal-grid">
+              ${calendarCells}
+            </div>
+          </div>
+
+          <div class="cal-legend">
+            <span><span class="cal-dot" style="background:#8FAD88; display:inline-block; margin-right:4px;"></span> Đã có gợi ý AI</span>
+            <span><span class="cal-dot" style="background:#e67e22; display:inline-block; margin-right:4px;"></span> Sự kiện sắp tới</span>
+          </div>
+        </div>
+
+        <!-- Relationship Graph -->
+        <div class="care-lendar-section-card">
+          <div class="care-lendar-header-row">
+            <h3><i class="fa-solid fa-network-wired"></i> Mạng lưới mối quan hệ</h3>
+            <span style="font-size:0.8rem; font-weight:600; color:var(--color-text-light);">${state.relationshipGraph.length} người</span>
+          </div>
+          <div class="recipients-list-container">
+            ${relationshipHtml}
+          </div>
+        </div>
+
+        <!-- Add Recipient Form -->
+        <div class="care-lendar-form-container">
+          <div class="care-lendar-form-title"><i class="fa-solid fa-user-plus"></i> Thêm người nhận mới</div>
+          <form id="add-recipient-form">
+            <div class="care-lendar-form-group">
+              <label>Họ và tên *</label>
+              <input type="text" id="rc-form-name" placeholder="Ví dụ: Chị Lan, Bạn Minh..." required>
+            </div>
+            <div class="care-lendar-form-group">
+              <label>Mối quan hệ *</label>
+              <select id="rc-form-rel" required>
+                <option value="friends">Bạn bè thân thiết</option>
+                <option value="lovers">Người thương</option>
+                <option value="family" selected>Gia đình</option>
+                <option value="colleagues">Đồng nghiệp</option>
+                <option value="clients">Khách hàng</option>
+                <option value="partners">Đối tác B2B</option>
+              </select>
+            </div>
+            <div class="care-lendar-form-group">
+              <label>Sở thích (tags, phân cách bằng dấu phẩy)</label>
+              <input type="text" id="rc-form-interests" placeholder="eco, minimal, vintage, handmade...">
+            </div>
+            <div class="care-lendar-form-group">
+              <label>Phong cách ưa thích</label>
+              <select id="rc-form-style">
+                <option value="eco">Eco – Tự nhiên</option>
+                <option value="minimal">Minimal – Tối giản</option>
+                <option value="vintage">Vintage – Mộc mạc xưa</option>
+                <option value="luxury">Luxury – Sang trọng</option>
+                <option value="cute">Cute – Đáng yêu</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top:0.5rem; background-color:var(--color-accent); color:white;">
+              <i class="fa-solid fa-circle-check"></i> Lưu vào Graph
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div class="care-lendar-right-col">
+
+        <!-- Event Timeline -->
+        <div class="care-lendar-section-card">
+          <div class="care-lendar-header-row">
+            <h3><i class="fa-solid fa-timeline"></i> Lịch trình sự kiện</h3>
+            <span style="font-size:0.8rem; font-weight:600; color:var(--color-text-light);">${state.careLendarEvents.length} sự kiện</span>
+          </div>
+          <div class="events-timeline-container">
+            ${eventsHtml}
+          </div>
+        </div>
+
+        <!-- Add Event Form -->
+        <div class="care-lendar-form-container">
+          <div class="care-lendar-form-title"><i class="fa-solid fa-calendar-plus"></i> Thêm ngày kỷ niệm / sự kiện</div>
+          <form id="add-event-form">
+            <div class="care-lendar-form-group">
+              <label>Chọn người nhận *</label>
+              <select id="ev-form-rc" required>
+                <option value="">-- Chọn trong Graph --</option>
+                ${state.relationshipGraph.map(rc => `<option value="${rc.id}">${rc.name} (${rc.relationship_type})</option>`).join('')}
+              </select>
+            </div>
+            <div class="care-lendar-form-group">
+              <label>Tiêu đề sự kiện *</label>
+              <input type="text" id="ev-form-title" placeholder="Ví dụ: Sinh nhật lần thứ 50 của Mẹ..." required>
+            </div>
+            <div class="care-lendar-form-group">
+              <label>Dịp sự kiện *</label>
+              <select id="ev-form-type" required>
+                <option value="birthday">🎂 Sinh nhật</option>
+                <option value="anniversary">💕 Kỷ niệm</option>
+                <option value="tet">🏮 Tết cổ truyền</option>
+                <option value="christmas">🎄 Giáng sinh</option>
+                <option value="valentine">💝 Lễ Tình nhân</option>
+                <option value="thanks">🙏 Lời cảm ơn / Tri ân</option>
+              </select>
+            </div>
+            <div class="care-lendar-form-group">
+              <label>Ngày diễn ra sự kiện *</label>
+              <input type="date" id="ev-form-date" required>
+            </div>
+            <div class="care-lendar-form-group" style="display:flex; align-items:center; gap:0.5rem; padding: 0.3rem 0;">
+              <input type="checkbox" id="ev-form-recur" style="width:auto; accent-color:var(--color-accent);">
+              <label for="ev-form-recur" style="margin-bottom:0; font-size:0.85rem; cursor:pointer;">Tự động lặp lại hàng năm</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block" style="margin-top:0.5rem; background-color:var(--color-accent); color:white;">
+              <i class="fa-solid fa-calendar-check"></i> Lưu sự kiện
+            </button>
+          </form>
+        </div>
+
+        <!-- AI Insight Panel (visible when event has draft) -->
+        <div class="care-lendar-section-card" id="cl-ai-insight-panel" style="display:none;">
+          <div class="care-lendar-header-row">
+            <h3><i class="fa-solid fa-brain" style="color:var(--color-accent);"></i> AI Insight của Sự kiện</h3>
+          </div>
+          <div id="cl-ai-insight-body" style="padding:1rem; font-size:0.88rem; line-height:1.65; color:var(--color-text-light);"></div>
+          <div id="cl-ai-cta-row" style="padding:0 1rem 1rem; display:flex; gap:0.75rem; flex-wrap:wrap;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // ─── Bind: Calendar Navigation ─────────────────────────────────────────────
+  document.getElementById('cal-prev-btn')?.addEventListener('click', () => {
+    const d = state._calendarDate ? new Date(state._calendarDate) : new Date();
+    d.setMonth(d.getMonth() - 1);
+    state._calendarDate = d.toISOString();
+    renderCareLendar();
+  });
+  document.getElementById('cal-next-btn')?.addEventListener('click', () => {
+    const d = state._calendarDate ? new Date(state._calendarDate) : new Date();
+    d.setMonth(d.getMonth() + 1);
+    state._calendarDate = d.toISOString();
+    renderCareLendar();
+  });
+
+  // ─── Bind: Calendar Cell Click (show events for that day) ──────────────────
+  view.querySelectorAll('.cal-cell.has-event').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const dateStr = cell.dataset.date;
+      const dayEvents = state.careLendarEvents.filter(e => e.event_date === dateStr);
+      if (dayEvents.length === 0) return;
+
+      // Show AI insight panel for the first event with a draft
+      const evWithDraft = dayEvents.find(e => e.suggested_box_draft);
+      const targetEv    = evWithDraft || dayEvents[0];
+      showEventInsightPanel(targetEv);
+    });
+  });
+
+  // ─── Bind: View Suggested Box buttons ──────────────────────────────────────
+  view.querySelectorAll('.view-suggested-box-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const evId = parseInt(btn.dataset.eventId);
+      const ev   = state.careLendarEvents.find(e => e.id === evId);
+      if (ev && ev.suggested_box_draft) {
+        showEventInsightPanel(ev);
+      }
+    });
+  });
+
+  // ─── Bind: Sweep Cron Button ───────────────────────────────────────────────
+  document.getElementById('simulation-cron-sweep-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('simulation-cron-sweep-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Đang quét...';
+    try {
+      const res  = await fetch('/api/cron/sweep', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ userId: state.user.email })
+      });
+      const data = await res.json();
+      await loadCareLendarData();
+      renderCareLendar();
+      if (data.triggeredCount > 0) {
+        showToast(`✅ Phát hiện ${data.triggeredCount} sự kiện! Đã tạo gợi ý AI và gửi thông báo.`);
+      } else {
+        showToast('Quét hoàn tất. Chưa có sự kiện nào ở đúng mốc t-14 ngày hoặc đã được xử lý trước đó.');
+      }
+    } catch (err) {
+      console.error('Sweep trigger failed:', err);
+      showToast('Chạy quét thất bại. Vui lòng kiểm tra kết nối server.');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-network-wired"></i> Chạy Sweep Cron (t-14)';
+    }
+  });
+
+  // ─── Bind: Add Recipient Form ──────────────────────────────────────────────
+  document.getElementById('add-recipient-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name            = document.getElementById('rc-form-name').value.trim();
+    const relationshipType = document.getElementById('rc-form-rel').value;
+    const stylePreference  = document.getElementById('rc-form-style').value;
+    const rawTags          = document.getElementById('rc-form-interests').value.trim();
+    const interests        = rawTags ? rawTags.split(',').map(x => x.trim().toLowerCase()).filter(Boolean) : [];
+
+    try {
+      const res = await fetch('/api/recipients', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ userId: state.user.email, name, relationshipType, interests, stylePreference })
+      });
+      if (res.ok) {
+        showToast('Đã lưu người nhận mới vào mạng lưới mối quan hệ!');
+        await loadCareLendarData();
+        renderCareLendar();
+      }
+    } catch (err) {
+      console.error('Failed to add recipient:', err);
+      showToast('Lỗi thêm người nhận. Vui lòng kiểm tra kết nối server.');
+    }
+  });
+
+  // ─── Bind: Add Event Form ──────────────────────────────────────────────────
+  document.getElementById('add-event-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const recipientId = document.getElementById('ev-form-rc').value;
+    const title       = document.getElementById('ev-form-title').value.trim();
+    const eventType   = document.getElementById('ev-form-type').value;
+    const eventDate   = document.getElementById('ev-form-date').value;
+    const recurs      = document.getElementById('ev-form-recur').checked;
+
+    if (!recipientId) { showToast('Vui lòng chọn người nhận!'); return; }
+
+    try {
+      const res = await fetch('/api/care-lendar/events', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ userId: state.user.email, recipientId, title, eventType, eventDate, recurse: recurs })
+      });
+      if (res.ok) {
+        showToast('Đã lên lịch sự kiện thành công!');
+        // Navigate calendar to the month of the new event
+        state._calendarDate = new Date(eventDate).toISOString();
+        await loadCareLendarData();
+        renderCareLendar();
+      }
+    } catch (err) {
+      console.error('Failed to add event:', err);
+      showToast('Lỗi thêm sự kiện.');
+    }
+  });
+
+  // ─── Bind: Delete Recipient ────────────────────────────────────────────────
+  view.querySelectorAll('.delete-recipient-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Bạn có chắc chắn muốn xóa người nhận này khỏi mạng lưới? Tất cả sự kiện liên quan cũng sẽ bị xóa.')) return;
+      const rcId = btn.dataset.recipientId;
+      try {
+        const res = await fetch(`/api/recipients/${rcId}?userId=${state.user.email}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast('Đã xóa người nhận!');
+          await loadCareLendarData();
+          renderCareLendar();
+        }
+      } catch (err) { console.error('Delete recipient failed:', err); }
+    });
+  });
+
+  // ─── Bind: Delete Event ────────────────────────────────────────────────────
+  view.querySelectorAll('.delete-event-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Bạn có chắc chắn muốn xóa sự kiện này?')) return;
+      const evId = btn.dataset.eventId;
+      try {
+        const res = await fetch(`/api/care-lendar/events/${evId}?userId=${state.user.email}`, { method: 'DELETE' });
+        if (res.ok) {
+          showToast('Đã xóa sự kiện!');
+          await loadCareLendarData();
+          renderCareLendar();
+        }
+      } catch (err) { console.error('Delete event failed:', err); }
+    });
+  });
+}
+
+// Helper: show event AI insight + CTA panel
+function showEventInsightPanel(ev) {
+  const panel      = document.getElementById('cl-ai-insight-panel');
+  const bodyEl     = document.getElementById('cl-ai-insight-body');
+  const ctaRow     = document.getElementById('cl-ai-cta-row');
+  if (!panel || !bodyEl || !ctaRow) return;
+
+  const draft  = ev.suggested_box_draft;
+  const rcName = ev.recipient ? ev.recipient.name : 'Người nhận';
+
+  panel.style.display = 'block';
+  bodyEl.innerHTML = draft
+    ? `<div style="font-style:italic; border-left:3px solid var(--color-accent); padding-left:0.75rem; margin-bottom:0.75rem;">"${draft.insight || ''}"</div>
+       <div style="font-size:0.78rem; color:var(--color-text-light); margin-bottom:0.25rem;">AI đề xuất ${draft.productIds ? draft.productIds.length : 0} sản phẩm cho hộp quà của <strong>${rcName}</strong>.</div>
+       ${draft.simulation ? '<div style="font-size:0.72rem; color:var(--color-text-light); opacity:0.8;"><i class="fa-solid fa-flask-vial"></i> Được tạo bởi Mock Engine (chưa có OpenAI API Key)</div>' : '<div style="font-size:0.72rem; color:var(--color-accent);"><i class="fa-solid fa-robot"></i> Được thiết kế bởi GPT-4o</div>'}`
+    : `<div>Sự kiện này chưa có bản thiết kế hộp quà AI. Hãy chạy Sweep Cron để tạo gợi ý.</div>`;
+
+  ctaRow.innerHTML = draft ? `
+    <button class="btn btn-primary" onclick="
+      state.aiAssist.results = state.careLendarEvents.find(e=>e.id===${ev.id})?.suggested_box_draft;
+      state.aiAssist.isOpen = true;
+      document.getElementById('ai-assist-drawer')?.classList.add('active');
+      renderAiAssist();
+    " style="font-size:0.82rem; padding:0.4rem 0.9rem;">
+      <i class="fa-solid fa-eye"></i> Duyệt ngay &amp; Xem Preview
+    </button>
+    <button class="btn btn-primary btn-outline" onclick="
+      state.aiAssist.results = state.careLendarEvents.find(e=>e.id===${ev.id})?.suggested_box_draft;
+      state.aiAssist.isOpen = true;
+      state.aiAssist.step = 1;
+      document.getElementById('ai-assist-drawer')?.classList.add('active');
+      renderAiAssist();
+    " style="font-size:0.82rem; padding:0.4rem 0.9rem;">
+      <i class="fa-solid fa-pen-to-square"></i> Tùy chỉnh chuyên sâu
+    </button>
+  ` : '';
+
+  // Scroll panel into view
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
